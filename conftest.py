@@ -1,5 +1,6 @@
 import pytest
 
+from spotify_stats.analytics.factories import StreamingHistoryFactory
 from spotify_stats.catalog.models import Album
 from spotify_stats.catalog.tests.factories import ArtistFactory, AlbumFactory, \
     TrackFactory
@@ -44,3 +45,8 @@ def track_factory():
 @pytest.fixture
 def track(db, track_factory):
     return track_factory()
+
+
+@pytest.fixture
+def streaming_history_factory():
+    return StreamingHistoryFactory
