@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     "spotify_stats.users",
+    "spotify_stats.core",
 ]
 
 
