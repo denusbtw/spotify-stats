@@ -1,5 +1,7 @@
 import pytest
 
+from rest_framework.test import APIClient
+
 from spotify_stats.analytics.factories import StreamingHistoryFactory
 from spotify_stats.catalog.tests.factories import (
     AlbumFactory,
@@ -52,3 +54,18 @@ def track(db, track_factory):
 @pytest.fixture
 def streaming_history_factory():
     return StreamingHistoryFactory
+
+
+@pytest.fixture
+def invalid_password():
+    return "invalid"
+
+
+@pytest.fixture
+def valid_password():
+    return "qwerty1337228"
+
+
+@pytest.fixture
+def api_client():
+    return APIClient()
