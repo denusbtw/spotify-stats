@@ -2,3 +2,5 @@ django~=5.2.5
 dj-database-url~=3.0.1
 psycopg[binary]~=3.2.9
 pytest~=8.4.1
+factory-boy~=3.3.3
+pytest-django~=4.11.1
