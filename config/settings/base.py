@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "spotify_stats.core",
     "spotify_stats.users",
     "spotify_stats.catalog",
+    "spotify_stats.analytics",
 ]
 
 
