@@ -3,6 +3,12 @@ FROM  python:3.12-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONBUFFERED=1
 
+ARG UID=1000
+ARG GID=1000
+
+RUN addgroup --gid $GID appgroup && \
+    adduser --disabled-password --gecos "" --uid $UID --gid $GID appuser
+
 WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -11,6 +17,8 @@ RUN uv --version
 COPY requirements.txt .
 
 RUN uv pip install -r requirements.txt --system
+
+USER appuser
 
 COPY . .
 
