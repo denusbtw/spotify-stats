@@ -1,7 +1,7 @@
 import factory
 from faker import Faker
 
-from spotify_stats.catalog.models import Artist, Album, Track
+from spotify_stats.catalog.models import Album, Artist, Track
 
 fake = Faker()
 

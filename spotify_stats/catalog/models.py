@@ -1,6 +1,6 @@
 from django.db import models
 
-from spotify_stats.core.models import UUIDModel, TimestampedModel
+from spotify_stats.core.models import TimestampedModel, UUIDModel
 
 
 class Artist(UUIDModel, TimestampedModel):

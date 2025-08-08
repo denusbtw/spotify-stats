@@ -1,7 +1,6 @@
 import pytest
 
-from conftest import track_factory
-from spotify_stats.catalog.models import Artist, Album, Track
+from spotify_stats.catalog.models import Album, Artist, Track
 
 
 @pytest.mark.django_db

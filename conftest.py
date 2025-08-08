@@ -1,9 +1,11 @@
 import pytest
 
 from spotify_stats.analytics.factories import StreamingHistoryFactory
-from spotify_stats.catalog.models import Album
-from spotify_stats.catalog.tests.factories import ArtistFactory, AlbumFactory, \
-    TrackFactory
+from spotify_stats.catalog.tests.factories import (
+    AlbumFactory,
+    ArtistFactory,
+    TrackFactory,
+)
 from spotify_stats.users.tests.factories import UserFactory
 
 
