@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     "rest_framework",
+    "drf_spectacular",
 
     "spotify_stats.core",
     "spotify_stats.users",
@@ -129,4 +130,17 @@ LOGGING = {
             "propagate": False,
         },
     },
+}
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Spotify Stats API',
+    'DESCRIPTION': 'API for spotify stats',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
