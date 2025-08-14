@@ -13,7 +13,25 @@ class Album(UUIDModel, TimestampedModel):
 
 
 class Track(UUIDModel, TimestampedModel):
-    artist = models.ForeignKey(Artist, on_delete=models.CASCADE, related_name="tracks")
-    album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name="tracks")
+    artist = models.ForeignKey(
+        Artist,
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="tracks"
+    )
+    album = models.ForeignKey(
+        Album,
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="tracks"
+    )
     name = models.CharField(max_length=255)
     spotify_track_uri = models.CharField(max_length=50, unique=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["spotify_track_uri", "artist", "album"],
+                name="unique_artist_album_spotify_track_uri"
+            )
+        ]

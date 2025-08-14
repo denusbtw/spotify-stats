@@ -15,3 +15,15 @@ class StreamingHistory(UUIDModel, TimestampedModel):
 
     def __str__(self):
         return f"{self.user.username} - {self.track.name}: {self.played_at.strftime('%Y/%m/%d, %H:%M:%S')}"
+
+
+class FileUploadJob(UUIDModel, TimestampedModel):
+    class Status(models.TextChoices):
+        PENDING = ("pending", "Pending")
+        PROCESSING = ("processing", "Processing")
+        COMPLETED = ("completed", "Completed")
+        FAILED = ("failed", "Failed")
+
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE)
+    file = models.FileField()
+    status = models.CharField(max_length=15, choices=Status.choices)

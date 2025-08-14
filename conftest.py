@@ -1,8 +1,13 @@
 import pytest
+from faker import Faker
+from faker_file.providers.txt_file import TxtFileProvider
+from faker_file.providers.json_file import JsonFileProvider
 
 from rest_framework.test import APIClient
 
-from spotify_stats.analytics.factories import StreamingHistoryFactory
+from spotify_stats.analytics.tests.factories import (
+    StreamingHistoryFactory, FileUploadJobFactory
+)
 from spotify_stats.catalog.tests.factories import (
     AlbumFactory,
     ArtistFactory,
@@ -69,3 +74,28 @@ def valid_password():
 @pytest.fixture
 def api_client():
     return APIClient()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def override_media_root(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+
+
+@pytest.fixture(scope="session")
+def fake():
+    faker_instance = Faker()
+
+    COMMON_PROVIDERS = [
+        TxtFileProvider,
+        JsonFileProvider
+    ]
+
+    for provider in COMMON_PROVIDERS:
+        faker_instance.add_provider(provider)
+
+    return faker_instance
+
+
+@pytest.fixture
+def file_upload_job_factory():
+    return FileUploadJobFactory
