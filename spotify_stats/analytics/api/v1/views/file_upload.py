@@ -9,13 +9,16 @@ from rest_framework import (
 )
 
 from spotify_stats.analytics.models import FileUploadJob
-from ..serializers import FileUploadJobListSerializer, FileUploadJobCreateSerializer
+from ..serializers import (
+    UserFileUploadJobListSerializer,
+    UserFileUploadJobCreateSerializer,
+)
 from spotify_stats.analytics.tasks import process_file_upload_jobs
 
 
-class FileUploadJobAPIView(mixins.ListModelMixin, generics.GenericAPIView):
+class UserFileUploadJobListCreateView(mixins.ListModelMixin, generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = FileUploadJobListSerializer
+    serializer_class = UserFileUploadJobListSerializer
     filter_backends = [filters.OrderingFilter]
     parser_classes = [parsers.MultiPartParser]
     ordering = "-created_at"
@@ -27,7 +30,7 @@ class FileUploadJobAPIView(mixins.ListModelMixin, generics.GenericAPIView):
         return FileUploadJob.objects.filter(user=self.request.user)
 
     def post(self, request, *args, **kwargs):
-        serializer = FileUploadJobCreateSerializer(data=request.data)
+        serializer = UserFileUploadJobCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         files = serializer.validated_data["files"]
@@ -52,5 +55,5 @@ class FileUploadJobAPIView(mixins.ListModelMixin, generics.GenericAPIView):
 
 
 # TODO:
-class FileUploadJobDetailAPIView(generics.RetrieveDestroyAPIView):
+class UserFileUploadJobDetailView(generics.RetrieveDestroyAPIView):
     pass

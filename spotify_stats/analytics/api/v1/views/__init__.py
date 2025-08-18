@@ -1,19 +1,19 @@
-from .file_upload import FileUploadJobAPIView, FileUploadJobDetailAPIView
+from .file_upload import UserFileUploadJobListCreateView, UserFileUploadJobDetailView
 from .analytics import (
-    TopArtistsAPIView,
-    TopAlbumsAPIView,
-    TopTracksAPIView,
-    ListeningStatsAPIView,
-    ListeningActivityAPIView,
+    UserTopArtistsListView,
+    UserTopAlbumsListView,
+    UserTopTracksListView,
+    UserListeningStatsView,
+    UserListeningActivityView,
 )
 
 
 __all__ = [
-    "FileUploadJobAPIView",
-    "FileUploadJobDetailAPIView",
-    "TopArtistsAPIView",
-    "TopAlbumsAPIView",
-    "TopTracksAPIView",
-    "ListeningStatsAPIView",
-    "ListeningActivityAPIView",
+    "UserFileUploadJobListCreateView",
+    "UserFileUploadJobDetailView",
+    "UserTopArtistsListView",
+    "UserTopAlbumsListView",
+    "UserTopTracksListView",
+    "UserListeningStatsView",
+    "UserListeningActivityView",
 ]

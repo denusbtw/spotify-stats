@@ -3,13 +3,13 @@ from rest_framework import serializers
 from spotify_stats.analytics.models import FileUploadJob
 
 
-class FileUploadJobListSerializer(serializers.ModelSerializer):
+class UserFileUploadJobListSerializer(serializers.ModelSerializer):
     class Meta:
         model = FileUploadJob
         fields = ("id", "file", "status", "created_at", "updated_at")
 
 
-class FileUploadJobCreateSerializer(serializers.Serializer):
+class UserFileUploadJobCreateSerializer(serializers.Serializer):
     files = serializers.ListField(child=serializers.FileField())
 
     def validate_files(self, files):

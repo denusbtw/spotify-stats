@@ -23,7 +23,7 @@ from spotify_stats.analytics.service import StreamingAnalyticsService
 User = get_user_model()
 
 
-class BaseTopItemsAPIView(generics.ListAPIView):
+class BaseUserTopItemsListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = None
     filter_backends = [
@@ -45,7 +45,7 @@ class BaseTopItemsAPIView(generics.ListAPIView):
         return filterset.qs
 
 
-class TopArtistsAPIView(BaseTopItemsAPIView):
+class UserTopArtistsListView(BaseUserTopItemsListView):
     serializer_class = TopArtistsSerializer
     filterset_class = TopArtistsFilterSet
     search_fields = ["name"]
@@ -55,7 +55,7 @@ class TopArtistsAPIView(BaseTopItemsAPIView):
         return StreamingAnalyticsService.top_artists(queryset)
 
 
-class TopAlbumsAPIView(BaseTopItemsAPIView):
+class UserTopAlbumsListView(BaseUserTopItemsListView):
     serializer_class = TopAlbumsSerializer
     filterset_class = TopAlbumsFilterSet
     search_fields = ["name", "artists__name"]
@@ -65,7 +65,7 @@ class TopAlbumsAPIView(BaseTopItemsAPIView):
         return StreamingAnalyticsService.top_albums(queryset)
 
 
-class TopTracksAPIView(BaseTopItemsAPIView):
+class UserTopTracksListView(BaseUserTopItemsListView):
     serializer_class = TopTracksSerializer
     filterset_class = TopTracksFilterSet
     search_fields = [
@@ -79,14 +79,14 @@ class TopTracksAPIView(BaseTopItemsAPIView):
         return StreamingAnalyticsService.top_tracks(queryset)
 
 
-class BaseListeningAPIView(generics.GenericAPIView):
+class BaseUserListeningView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return StreamingHistory.objects.for_user(self.request.user)
 
 
-class ListeningStatsAPIView(BaseListeningAPIView):
+class UserListeningStatsView(BaseUserListeningView):
     filter_backends = [DjangoFilterBackend]
     filterset_class = ListeningFilterSet
 
@@ -96,7 +96,7 @@ class ListeningStatsAPIView(BaseListeningAPIView):
         return response.Response(stats)
 
 
-class ListeningActivityAPIView(BaseListeningAPIView):
+class UserListeningActivityView(BaseUserListeningView):
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["tracks_played", "total_ms_played"]
 

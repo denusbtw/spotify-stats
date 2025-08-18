@@ -2,11 +2,11 @@ from rest_framework import generics, permissions
 
 from spotify_stats.users.api.v1.serializers import (
     MeUpdateSerializer,
-    MeRetrieveSerializer
+    MeRetrieveSerializer,
 )
 
 
-class MeDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+class MeDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):

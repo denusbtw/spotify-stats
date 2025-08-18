@@ -1,20 +1,46 @@
 from django.urls import path
 
 from spotify_stats.analytics.api.v1.views import (
-    FileUploadJobAPIView,
-    TopTracksAPIView,
-    TopAlbumsAPIView,
-    TopArtistsAPIView, ListeningStatsAPIView, ListeningActivityAPIView,
+    UserFileUploadJobListCreateView,
+    UserTopTracksListView,
+    UserTopAlbumsListView,
+    UserTopArtistsListView,
+    UserListeningStatsView,
+    UserListeningActivityView,
 )
-from spotify_stats.users.api.v1.views import MeDetailAPIView
+from spotify_stats.users.api.v1.views import MeDetailView
 
 app_name = "v1"
 urlpatterns = [
-    path("me/", MeDetailAPIView.as_view(), name="me_detail"),
-    path("me/uploads/", FileUploadJobAPIView.as_view(), name="me_upload_list"),
-    path("me/analytics/top-artists/", TopArtistsAPIView.as_view(), name="me_analytics_top_artists"),
-    path("me/analytics/top-albums/", TopAlbumsAPIView.as_view(), name="me_analytics_top_albums"),
-    path("me/analytics/top-tracks/", TopTracksAPIView.as_view(), name="me_analytics_top_tracks"),
-    path("me/analytics/stats/", ListeningStatsAPIView.as_view(), name="me_analytics_stats"),
-    path("me/analytics/activity/", ListeningActivityAPIView.as_view(), name="me_analytics_activity")
+    path("me/", MeDetailView.as_view(), name="me_detail"),
+    path(
+        "me/uploads/",
+        UserFileUploadJobListCreateView.as_view(),
+        name="user_upload_list",
+    ),
+    path(
+        "me/analytics/top-artists/",
+        UserTopArtistsListView.as_view(),
+        name="user_top_artists",
+    ),
+    path(
+        "me/analytics/top-albums/",
+        UserTopAlbumsListView.as_view(),
+        name="user_top_albums",
+    ),
+    path(
+        "me/analytics/top-tracks/",
+        UserTopTracksListView.as_view(),
+        name="user_top_tracks",
+    ),
+    path(
+        "me/analytics/stats/",
+        UserListeningStatsView.as_view(),
+        name="user_listening_stats",
+    ),
+    path(
+        "me/analytics/activity/",
+        UserListeningActivityView.as_view(),
+        name="user_listening_activity",
+    ),
 ]

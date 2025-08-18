@@ -8,7 +8,7 @@ from spotify_stats.analytics.models import FileUploadJob
 
 @pytest.fixture
 def file_upload_url():
-    return reverse("v1:me_upload_list")
+    return reverse("v1:user_upload_list")
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ def mock_process_file_upload_jobs(mocker):
 
 
 @pytest.mark.django_db
-class TestFileUploadJobListCreateAPIView:
+class TestUserFileUploadJobListCreateView:
 
     @pytest.mark.parametrize(
         "method, expected_status",
