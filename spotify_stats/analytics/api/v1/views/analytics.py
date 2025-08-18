@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import QuerySet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import (
     generics,
@@ -35,10 +36,10 @@ class BaseTopItemsAPIView(generics.ListAPIView):
     ordering_fields = ["total_ms_played", "play_count"]
     ordering = "-play_count"
 
-    def get_base_queryset(self):
+    def get_base_queryset(self) -> QuerySet[StreamingHistory]:
         return StreamingHistory.objects.for_user(self.request.user)
 
-    def get_filtered_streaming_history(self):
+    def get_filtered_streaming_history(self) -> QuerySet[StreamingHistory]:
         base_queryset = self.get_base_queryset()
         filterset = StreamingHistoryFilterSet(self.request.query_params, base_queryset)
         return filterset.qs
@@ -117,18 +118,18 @@ class ListeningActivityAPIView(BaseListeningAPIView):
         filtered_activity = self.filter_queryset(activity)
         return response.Response(filtered_activity)
 
-    def get_method_name_by_activity_type(self, activity_type) -> str | None:
+    def get_method_name_by_activity_type(self, activity_type: str) -> str | None:
         mapping = self.get_allowed_activity_types_mapping()
         return mapping.get(activity_type)
 
-    def get_allowed_activity_types_mapping(self):
+    def get_allowed_activity_types_mapping(self) -> dict[str, str]:
         return {
             "yearly": "yearly_activity",
             "monthly": "monthly_activity",
             "daily": "daily_activity",
         }
 
-    def get_filtered_streaming_history(self):
+    def get_filtered_streaming_history(self) -> QuerySet[StreamingHistory]:
         streaming_history_qs = self.get_queryset()
         filterset = ListeningFilterSet(self.request.query_params, streaming_history_qs)
         return filterset.qs

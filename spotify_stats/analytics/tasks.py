@@ -1,24 +1,28 @@
 import json
 import logging
+import uuid
+from typing import Any
 
 from celery import shared_task
 from django.utils.dateparse import parse_datetime
+from django.contrib.auth import get_user_model
 
 from spotify_stats.analytics.models import FileUploadJob, StreamingHistory
 from spotify_stats.catalog.models import (
     Track,
     Artist,
     Album,
-    AlbumArtist,
     TrackArtist,
     TrackAlbum,
 )
 
 log = logging.getLogger(__name__)
 
+User = get_user_model()
+
 
 @shared_task
-def process_file_upload_jobs(job_ids):
+def process_file_upload_jobs(job_ids: list[uuid.UUID]) -> None:
     jobs = FileUploadJob.objects.filter(id__in=job_ids)
 
     for job in jobs:
@@ -45,7 +49,7 @@ def process_file_upload_jobs(job_ids):
         job.save(update_fields=["status"])
 
 
-def process_single_job(job):
+def process_single_job(job: FileUploadJob) -> bool:
     try:
         streaming_records = json.load(job.file)
     except json.JSONDecodeError as e:
@@ -62,7 +66,7 @@ def process_single_job(job):
     return True
 
 
-def process_single_record(record, user):
+def process_single_record(record: dict[str, Any], user: User) -> bool:
     if not isinstance(record, dict):
         log.debug("Invalid record type: %s" % type(record))
         return False
@@ -141,5 +145,5 @@ def process_single_record(record, user):
     return True
 
 
-def safe_strip(value) -> str | None:
+def safe_strip(value: str) -> str | None:
     return value.strip() if isinstance(value, str) else None

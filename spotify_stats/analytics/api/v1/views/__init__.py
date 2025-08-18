@@ -1,4 +1,4 @@
-from .file_upload_job import FileUploadJobAPIView, FileUploadJobDetailAPIView
+from .file_upload import FileUploadJobAPIView, FileUploadJobDetailAPIView
 from .analytics import (
     TopArtistsAPIView,
     TopAlbumsAPIView,

@@ -1,4 +1,6 @@
-from django.db.models import Sum, Count, FloatField, Avg, Min, Max
+from typing import Any
+
+from django.db.models import Sum, Count, FloatField, Avg, Min, Max, QuerySet
 from django.db.models.functions import (
     Coalesce,
     Round,
@@ -8,20 +10,21 @@ from django.db.models.functions import (
     TruncDate,
 )
 
+from spotify_stats.analytics.models import StreamingHistory
 from spotify_stats.catalog.models import Artist, Album, Track
 
 
 class StreamingAnalyticsService:
 
     @staticmethod
-    def top_artists(base_queryset):
+    def top_artists(base_queryset: QuerySet[StreamingHistory]) -> QuerySet[Artist]:
         return Artist.objects.filter(tracks__history__in=base_queryset).annotate(
             total_ms_played=Sum("tracks__history__ms_played"),
             play_count=Count("tracks__history__id"),
         )
 
     @staticmethod
-    def top_albums(base_queryset):
+    def top_albums(base_queryset: QuerySet[StreamingHistory]) -> QuerySet[Album]:
         return (
             Album.objects.filter(tracks__history__in=base_queryset)
             .select_related("primary_artist")
@@ -33,7 +36,7 @@ class StreamingAnalyticsService:
         )
 
     @staticmethod
-    def top_tracks(base_queryset):
+    def top_tracks(base_queryset: QuerySet[StreamingHistory]) -> QuerySet[Track]:
         return (
             Track.objects.filter(history__in=base_queryset)
             .prefetch_related("artists", "albums")
@@ -44,7 +47,7 @@ class StreamingAnalyticsService:
         )
 
     @staticmethod
-    def listening_stats(base_queryset):
+    def listening_stats(base_queryset: QuerySet[StreamingHistory]) -> dict[str, Any]:
         return base_queryset.aggregate(
             total_ms_played=Coalesce(Sum("ms_played"), 0),
             total_mins_played=Coalesce(
@@ -77,7 +80,9 @@ class StreamingAnalyticsService:
         )
 
     @staticmethod
-    def yearly_activity(base_queryset):
+    def yearly_activity(
+        base_queryset: QuerySet[StreamingHistory],
+    ):
         return (
             base_queryset.annotate(year=TruncYear("played_at"))
             .values("year")
@@ -91,7 +96,7 @@ class StreamingAnalyticsService:
         )
 
     @staticmethod
-    def monthly_activity(base_queryset):
+    def monthly_activity(base_queryset: QuerySet[StreamingHistory]):
         return (
             base_queryset.annotate(month=TruncMonth("played_at"))
             .values("month")
@@ -105,7 +110,7 @@ class StreamingAnalyticsService:
         )
 
     @staticmethod
-    def daily_activity(base_queryset):
+    def daily_activity(base_queryset: QuerySet[StreamingHistory]):
         return (
             base_queryset.annotate(date=TruncDate("played_at"))
             .values("date")
