@@ -148,7 +148,11 @@ class TopTracksAPIView(generics.ListAPIView):
         DjangoFilterBackend,
     ]
     filterset_class = TopTracksFilterSet
-    search_fields = ["name", "artist__name", "album__name", "album__artist__name"]
+    search_fields = [
+        "name",
+        "artists__name",
+        "album__name",
+    ]
     ordering_fields = ["total_ms_played", "play_count"]
     ordering = "-play_count"
 

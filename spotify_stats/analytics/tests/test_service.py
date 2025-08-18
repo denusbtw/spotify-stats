@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from spotify_stats.analytics.models import StreamingHistory
 from spotify_stats.analytics.service import StreamingAnalyticsService
+from spotify_stats.catalog.models import TrackArtist
 
 
 @pytest.fixture
@@ -27,12 +28,16 @@ def album_2(album_factory, artist_2):
 
 @pytest.fixture
 def track_1(track_factory, artist_1, album_1):
-    return track_factory(artist=artist_1, album=album_1)
+    track = track_factory(album=album_1)
+    TrackArtist.objects.create(track=track, artist=artist_1)
+    return track
 
 
 @pytest.fixture
 def track_2(track_factory, artist_2, album_2):
-    return track_factory(artist=artist_2, album=album_2)
+    track = track_factory(album=album_2)
+    TrackArtist.objects.create(track=track, artist=artist_2)
+    return track
 
 
 class TestStreamingAnalyticsService:

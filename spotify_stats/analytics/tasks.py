@@ -5,7 +5,7 @@ from celery import shared_task
 from django.utils.dateparse import parse_datetime
 
 from spotify_stats.analytics.models import FileUploadJob, StreamingHistory
-from spotify_stats.catalog.models import Track, Artist, Album, AlbumArtist
+from spotify_stats.catalog.models import Track, Artist, Album, AlbumArtist, TrackArtist
 
 log = logging.getLogger(__name__)
 
@@ -120,8 +120,10 @@ def process_single_record(record, user):
 
         track, _ = Track.objects.get_or_create(
             spotify_track_uri=spotify_track_uri,
-            defaults={"artist": artist, "album": album, "name": track_name},
+            defaults={"album": album, "name": track_name},
         )
+
+        TrackArtist.objects.get_or_create(track=track, artist=artist)
 
         StreamingHistory.objects.get_or_create(
             user=user,

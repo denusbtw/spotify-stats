@@ -14,6 +14,7 @@ from spotify_stats.catalog.tests.factories import (
     ArtistFactory,
     TrackFactory,
     AlbumArtistFactory,
+    TrackArtistFactory,
 )
 from spotify_stats.users.tests.factories import UserFactory
 
@@ -61,6 +62,11 @@ def track_factory():
 @pytest.fixture
 def track(db, track_factory):
     return track_factory()
+
+
+@pytest.fixture
+def track_artist_factory():
+    return TrackArtistFactory
 
 
 @pytest.fixture

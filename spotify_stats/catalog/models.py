@@ -12,6 +12,7 @@ class Album(UUIDModel, TimestampedModel):
     primary_artist = models.ForeignKey(
         Artist, on_delete=models.RESTRICT, related_name="primary_albums", null=True
     )
+    # TODO: add `artists` M2M field when album will have spotify_album_uri
 
 
 class AlbumArtist(UUIDModel, TimestampedModel):
@@ -31,8 +32,8 @@ class AlbumArtist(UUIDModel, TimestampedModel):
 
 
 class Track(UUIDModel, TimestampedModel):
-    artist = models.ForeignKey(
-        Artist, on_delete=models.CASCADE, null=True, related_name="tracks"
+    artists = models.ManyToManyField(
+        Artist, through="TrackArtist", related_name="tracks"
     )
     album = models.ForeignKey(
         Album, on_delete=models.CASCADE, null=True, related_name="tracks"
@@ -43,7 +44,19 @@ class Track(UUIDModel, TimestampedModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["spotify_track_uri", "artist", "album"],
-                name="unique_artist_album_spotify_track_uri",
+                fields=["spotify_track_uri", "album"],
+                name="unique_album_spotify_track_uri",
+            )
+        ]
+
+
+class TrackArtist(UUIDModel, TimestampedModel):
+    track = models.ForeignKey(Track, on_delete=models.CASCADE)
+    artist = models.ForeignKey(Artist, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["track", "artist"], name="unique_track_artist"
             )
         ]
