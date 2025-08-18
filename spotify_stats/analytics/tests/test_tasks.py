@@ -12,7 +12,7 @@ from spotify_stats.analytics.tasks import (
     safe_strip,
 )
 from spotify_stats.analytics.models import StreamingHistory, FileUploadJob
-from spotify_stats.catalog.models import Artist, Album, Track
+from spotify_stats.catalog.models import Artist, Album, Track, AlbumArtist
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def valid_record():
         "skipped": True,
         "offline": None,
         "offline_timestamp": None,
-        "incognito_mode": False
+        "incognito_mode": False,
     }
 
 
@@ -53,7 +53,7 @@ def valid_record():
 class TestProcessFileUploadJobs:
 
     def test_marks_job_as_completed_if_success(
-            self, file_upload_job_factory, mock_process_single_job
+        self, file_upload_job_factory, mock_process_single_job
     ):
         mock_process_single_job.return_value = True
         mock_process_single_job.side_effect = None
@@ -65,7 +65,7 @@ class TestProcessFileUploadJobs:
         assert job.status == FileUploadJob.Status.COMPLETED
 
     def test_marks_job_as_failed_if_not_success(
-            self, file_upload_job_factory, mock_process_single_job
+        self, file_upload_job_factory, mock_process_single_job
     ):
         mock_process_single_job.return_value = False
         mock_process_single_job.side_effect = None
@@ -78,7 +78,7 @@ class TestProcessFileUploadJobs:
         assert job.status == FileUploadJob.Status.FAILED
 
     def test_marks_job_as_failed_if_exception(
-            self, file_upload_job_factory, mock_process_single_job
+        self, file_upload_job_factory, mock_process_single_job
     ):
         mock_process_single_job.side_effect = Exception
 
@@ -93,16 +93,17 @@ class TestProcessFileUploadJobs:
 @pytest.mark.django_db
 class TestProcessSingleJob:
 
-    @pytest.mark.parametrize("content", [
-        b"invalid json content",
-        b'{"missing": "bracket"',
-        b"not a json at all",
-    ])
+    @pytest.mark.parametrize(
+        "content",
+        [
+            b"invalid json content",
+            b'{"missing": "bracket"',
+            b"not a json at all",
+        ],
+    )
     def test_returns_if_invalid_json_file(self, file_upload_job_factory, content):
         file = SimpleUploadedFile(
-            "invalid.json",
-            content,
-            content_type="application/json"
+            "invalid.json", content, content_type="application/json"
         )
         job = file_upload_job_factory(file=file)
 
@@ -111,12 +112,12 @@ class TestProcessSingleJob:
         assert StreamingHistory.objects.count() == 0
 
     def test_successfully_processes_if_valid_file(
-            self, file_upload_job_factory, valid_record
+        self, file_upload_job_factory, valid_record
     ):
         file = SimpleUploadedFile(
             "valid.json",
             json.dumps([valid_record]).encode("utf-8"),
-            content_type="application/json"
+            content_type="application/json",
         )
         job = file_upload_job_factory(file=file)
 
@@ -128,31 +129,37 @@ class TestProcessSingleJob:
 @pytest.mark.django_db
 class TestProcessSingleRecord:
 
-    @pytest.mark.parametrize("record", [
-        ("this is", "not record"),
-        {"this is", "not record"},
-        3,
-        "this is not record",
-        12.2,
-        True
-    ])
+    @pytest.mark.parametrize(
+        "record",
+        [
+            ("this is", "not record"),
+            {"this is", "not record"},
+            3,
+            "this is not record",
+            12.2,
+            True,
+        ],
+    )
     def test_returns_false_if_record_is_not_dict(self, user, record):
         result = process_single_record(record, user)
         assert result is False
         assert len(connection.queries) == 0
 
-    @pytest.mark.parametrize("key_to_remove, is_required", [
-        ("ts", True),
-        ("ms_played", True),
-        ("master_metadata_track_name", True),
-        ("master_metadata_album_artist_name", True),
-        ("master_metadata_album_album_name", True),
-        ("spotify_track_uri", True),
-        ("spotify_track_uri", True),
-        ("platform", False)
-    ])
+    @pytest.mark.parametrize(
+        "key_to_remove, is_required",
+        [
+            ("ts", True),
+            ("ms_played", True),
+            ("master_metadata_track_name", True),
+            ("master_metadata_album_artist_name", True),
+            ("master_metadata_album_album_name", True),
+            ("spotify_track_uri", True),
+            ("spotify_track_uri", True),
+            ("platform", False),
+        ],
+    )
     def test_returns_false_if_missing_required_field(
-            self, user, valid_record, key_to_remove, is_required
+        self, user, valid_record, key_to_remove, is_required
     ):
         record = valid_record.copy()
         del record[key_to_remove]
@@ -165,14 +172,17 @@ class TestProcessSingleRecord:
         else:
             assert StreamingHistory.objects.count() == 1
 
-    @pytest.mark.parametrize("ts, is_valid", [
-        ("2024-07-55T12:11:10Z", False),
-        ("2024-07-25T33:11:10Z", False),
-        ("2024-07T12:11:10Z", False),
-        ("invalid_format", False),
-        ("2024-07-55", False),
-        ("2024-07-25T12:11:10Z", True),
-    ])
+    @pytest.mark.parametrize(
+        "ts, is_valid",
+        [
+            ("2024-07-55T12:11:10Z", False),
+            ("2024-07-25T33:11:10Z", False),
+            ("2024-07T12:11:10Z", False),
+            ("invalid_format", False),
+            ("2024-07-55", False),
+            ("2024-07-25T12:11:10Z", True),
+        ],
+    )
     def test_returns_false_if_invalid_ts(self, user, valid_record, ts, is_valid):
         record = valid_record.copy()
         record["ts"] = ts
@@ -185,18 +195,23 @@ class TestProcessSingleRecord:
         else:
             assert len(connection.queries) == 0
 
-    @pytest.mark.parametrize("ms_played, is_valid", [
-        (-10, False),
-        ("invalid", False),
-        ([1,2], False),
-        ((3,4), False),
-        ({5: 6}, False),
-        ({7, 8}, False),
-        ("72", True),
-        (35, True),
-        (48.5, True)
-    ])
-    def test_returns_false_if_invalid_ms_played(self, user, valid_record, ms_played, is_valid):
+    @pytest.mark.parametrize(
+        "ms_played, is_valid",
+        [
+            (-10, False),
+            ("invalid", False),
+            ([1, 2], False),
+            ((3, 4), False),
+            ({5: 6}, False),
+            ({7, 8}, False),
+            ("72", True),
+            (35, True),
+            (48.5, True),
+        ],
+    )
+    def test_returns_false_if_invalid_ms_played(
+        self, user, valid_record, ms_played, is_valid
+    ):
         record = valid_record.copy()
         record["ms_played"] = ms_played
 
@@ -220,8 +235,10 @@ class TestProcessSingleRecord:
         assert artist.name == valid_record["master_metadata_album_artist_name"]
 
         album = Album.objects.first()
-        assert album.artist == artist
+        assert album.primary_artist == artist
         assert album.name == valid_record["master_metadata_album_album_name"]
+
+        assert AlbumArtist.objects.filter(album=album).count() == 0
 
         track = Track.objects.first()
         assert track.artist == artist
@@ -245,14 +262,7 @@ class TestProcessSingleRecord:
 @pytest.mark.django_db
 class TestSafeStrip:
 
-    @pytest.mark.parametrize("value", [
-        None,
-        123,
-        45.67,
-        [1, 2, 3],
-        (4, 5),
-        {6: 7}
-    ])
+    @pytest.mark.parametrize("value", [None, 123, 45.67, [1, 2, 3], (4, 5), {6: 7}])
     def test_none_if_not_str(self, value):
         assert safe_strip(value) is None
 

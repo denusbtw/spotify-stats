@@ -6,12 +6,14 @@ from faker_file.providers.json_file import JsonFileProvider
 from rest_framework.test import APIClient
 
 from spotify_stats.analytics.tests.factories import (
-    StreamingHistoryFactory, FileUploadJobFactory
+    StreamingHistoryFactory,
+    FileUploadJobFactory,
 )
 from spotify_stats.catalog.tests.factories import (
     AlbumFactory,
     ArtistFactory,
     TrackFactory,
+    AlbumArtistFactory,
 )
 from spotify_stats.users.tests.factories import UserFactory
 
@@ -44,6 +46,11 @@ def album_factory():
 @pytest.fixture
 def album(db, album_factory):
     return album_factory()
+
+
+@pytest.fixture
+def album_artist_factory():
+    return AlbumArtistFactory
 
 
 @pytest.fixture
@@ -85,10 +92,7 @@ def override_media_root(tmp_path, settings):
 def fake():
     faker_instance = Faker()
 
-    COMMON_PROVIDERS = [
-        TxtFileProvider,
-        JsonFileProvider
-    ]
+    COMMON_PROVIDERS = [TxtFileProvider, JsonFileProvider]
 
     for provider in COMMON_PROVIDERS:
         faker_instance.add_provider(provider)

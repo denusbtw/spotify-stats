@@ -9,6 +9,7 @@ from rest_framework import (
     status,
     permissions,
     filters,
+    pagination,
 )
 
 from .filters import (
@@ -16,13 +17,9 @@ from .filters import (
     StreamingHistoryFilterSet,
     TopArtistsFilterSet,
     TopAlbumsFilterSet,
-    TopTracksFilterSet
+    TopTracksFilterSet,
 )
-from .serializers import (
-    TopTracksSerializer,
-    TopAlbumsSerializer,
-    TopArtistsSerializer
-)
+from .serializers import TopTracksSerializer, TopAlbumsSerializer, TopArtistsSerializer
 from spotify_stats.analytics.models import FileUploadJob, StreamingHistory
 from spotify_stats.analytics.tasks import process_file_upload_jobs
 from spotify_stats.analytics.service import StreamingAnalyticsService
@@ -37,9 +34,7 @@ class FileUploadJobListSerializer(serializers.ModelSerializer):
 
 
 class FileUploadJobCreateSerializer(serializers.Serializer):
-    files = serializers.ListField(
-        child=serializers.FileField()
-    )
+    files = serializers.ListField(child=serializers.FileField())
 
     def validate_files(self, files):
         ALLOWED_MIME_TYPES = ["application/json", "test/json"]
@@ -84,11 +79,7 @@ class FileUploadJobAPIView(mixins.ListModelMixin, generics.GenericAPIView):
             user = self.request.user
 
             objs_to_create.append(
-                FileUploadJob(
-                    user=user,
-                    file=file,
-                    status=FileUploadJob.Status.PENDING
-                )
+                FileUploadJob(user=user, file=file, status=FileUploadJob.Status.PENDING)
             )
 
         jobs = FileUploadJob.objects.bulk_create(objs_to_create)
@@ -99,11 +90,11 @@ class FileUploadJobAPIView(mixins.ListModelMixin, generics.GenericAPIView):
         return response.Response(
             "Files accepted for processing."
             f" Job ids: {', '.join([str(job.id) for job in jobs]) }",
-            status=status.HTTP_202_ACCEPTED
+            status=status.HTTP_202_ACCEPTED,
         )
 
 
-#TODO:
+# TODO:
 class FileUploadJobDetailAPIView(generics.RetrieveDestroyAPIView):
     pass
 
@@ -111,7 +102,11 @@ class FileUploadJobDetailAPIView(generics.RetrieveDestroyAPIView):
 class TopArtistsAPIView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = TopArtistsSerializer
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter, DjangoFilterBackend]
+    filter_backends = [
+        filters.OrderingFilter,
+        filters.SearchFilter,
+        DjangoFilterBackend,
+    ]
     filterset_class = TopArtistsFilterSet
     search_fields = ["name"]
     ordering_fields = ["total_ms_played", "play_count"]
@@ -127,9 +122,13 @@ class TopArtistsAPIView(generics.ListAPIView):
 class TopAlbumsAPIView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = TopAlbumsSerializer
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter, DjangoFilterBackend]
+    filter_backends = [
+        filters.OrderingFilter,
+        filters.SearchFilter,
+        DjangoFilterBackend,
+    ]
     filterset_class = TopAlbumsFilterSet
-    search_fields = ["name", "artist__name"]
+    search_fields = ["name", "primary_artist__name", "album_artists__artist__name"]
     ordering_fields = ["total_ms_played", "play_count"]
     ordering = "-play_count"
 
@@ -143,7 +142,11 @@ class TopAlbumsAPIView(generics.ListAPIView):
 class TopTracksAPIView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = TopTracksSerializer
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter, DjangoFilterBackend]
+    filter_backends = [
+        filters.OrderingFilter,
+        filters.SearchFilter,
+        DjangoFilterBackend,
+    ]
     filterset_class = TopTracksFilterSet
     search_fields = ["name", "artist__name", "album__name", "album__artist__name"]
     ordering_fields = ["total_ms_played", "play_count"]
@@ -193,8 +196,10 @@ class ListeningActivityAPIView(generics.GenericAPIView):
         activity_type = request.query_params.get("type")
         if activity_type not in activity_types_mapping:
             return response.Response(
-                {"detail": f"Invalid activity type. Allowed: {list(activity_types_mapping.keys())}"},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "detail": f"Invalid activity type. Allowed: {list(activity_types_mapping.keys())}"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         method_name = activity_types_mapping.get(activity_type)

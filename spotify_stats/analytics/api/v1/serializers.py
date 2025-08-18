@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from spotify_stats.catalog.api.v1.serializers import ArtistSerializer
 from spotify_stats.catalog.models import Track, Album, Artist
 
 
@@ -19,30 +20,35 @@ class TopArtistsSerializer(BaseTopSerializer):
 
     class Meta:
         model = Artist
-        fields = (
-            "id",
-            "name",
-            "total_ms_played",
-            "total_mins_played",
-            "play_count"
-        )
+        fields = ("id", "name", "total_ms_played", "total_mins_played", "play_count")
         read_only_fields = fields
 
 
 class TopAlbumsSerializer(BaseTopSerializer):
-    artist = serializers.CharField(source="artist.name", read_only=True)
+    artists = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Album
         fields = (
             "id",
-            "artist",
+            "artists",
             "name",
             "total_ms_played",
             "total_mins_played",
-            "play_count"
+            "play_count",
         )
         read_only_fields = fields
+
+    def get_artists(self, album):
+        serialized_artists = []
+
+        if album.primary_artist:
+            serialized_artists.append(ArtistSerializer(album.primary_artist).data)
+
+        serialized_artists += ArtistSerializer(
+            [aa.artist for aa in album.album_artists.all()], many=True
+        ).data
+        return serialized_artists
 
 
 class TopTracksSerializer(BaseTopSerializer):

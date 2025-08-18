@@ -17,12 +17,12 @@ def artist_2(artist_factory):
 
 @pytest.fixture
 def album_1(album_factory, artist_1):
-    return album_factory(artist=artist_1)
+    return album_factory(primary_artist=artist_1)
 
 
 @pytest.fixture
 def album_2(album_factory, artist_2):
-    return album_factory(artist=artist_2)
+    return album_factory(primary_artist=artist_2)
 
 
 @pytest.fixture
@@ -37,12 +37,9 @@ def track_2(track_factory, artist_2, album_2):
 
 class TestStreamingAnalyticsService:
 
-    def test_top_artists_returns_correct_data(
-            self, user, artist_1, track_1
-    ):
+    def test_top_artists_returns_correct_data(self, user, artist_1, track_1):
         StreamingHistory.objects.create(
-            user=user, track=track_1,
-            ms_played=30000, played_at=timezone.now()
+            user=user, track=track_1, ms_played=30000, played_at=timezone.now()
         )
 
         qs = StreamingHistory.objects.for_user(user)
@@ -53,12 +50,9 @@ class TestStreamingAnalyticsService:
         assert artist.total_ms_played == 30000
         assert artist.play_count == 1
 
-    def test_top_albums_returns_correct_data(
-            self, user, artist_1, album_1, track_1
-    ):
+    def test_top_albums_returns_correct_data(self, user, artist_1, album_1, track_1):
         StreamingHistory.objects.create(
-            user=user, track=track_1,
-            ms_played=30000, played_at=timezone.now()
+            user=user, track=track_1, ms_played=30000, played_at=timezone.now()
         )
 
         qs = StreamingHistory.objects.for_user(user)
@@ -69,12 +63,9 @@ class TestStreamingAnalyticsService:
         assert album.total_ms_played == 30000
         assert album.play_count == 1
 
-    def test_top_tracks_returns_correct_data(
-            self, user, artist_1, album_1, track_1
-    ):
+    def test_top_tracks_returns_correct_data(self, user, artist_1, album_1, track_1):
         StreamingHistory.objects.create(
-            user=user, track=track_1,
-            ms_played=30000, played_at=timezone.now()
+            user=user, track=track_1, ms_played=30000, played_at=timezone.now()
         )
 
         qs = StreamingHistory.objects.for_user(user)
@@ -84,5 +75,3 @@ class TestStreamingAnalyticsService:
         track = top_tracks.get(id=track_1.id)
         assert track.total_ms_played == 30000
         assert track.play_count == 1
-
-

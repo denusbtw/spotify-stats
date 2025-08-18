@@ -46,17 +46,20 @@ def listening_activity_url():
 @pytest.mark.django_db
 class TestFileUploadJobListCreateAPIView:
 
-    @pytest.mark.parametrize("method, expected_status", [
-        ("get", status.HTTP_403_FORBIDDEN),
-        ("post", status.HTTP_403_FORBIDDEN),
-    ])
+    @pytest.mark.parametrize(
+        "method, expected_status",
+        [
+            ("get", status.HTTP_403_FORBIDDEN),
+            ("post", status.HTTP_403_FORBIDDEN),
+        ],
+    )
     def test_anonymous_user(self, api_client, list_url, method, expected_status):
         response = getattr(api_client, method)(list_url)
         assert response.status_code == expected_status
 
     # GET
     def test_lists_only_request_user_jobs(
-            self, api_client, list_url, user, file_upload_job_factory
+        self, api_client, list_url, user, file_upload_job_factory
     ):
         api_client.force_authenticate(user=user)
 
@@ -76,8 +79,8 @@ class TestFileUploadJobListCreateAPIView:
 
         large_file = SimpleUploadedFile(
             "large.json",
-            b"x" * (15 * 1024 * 1024), # 15 MB
-            content_type="application/json"
+            b"x" * (15 * 1024 * 1024),  # 15 MB
+            content_type="application/json",
         )
 
         data = {"files": [large_file]}
@@ -86,14 +89,14 @@ class TestFileUploadJobListCreateAPIView:
         assert "size exceeds" in response.data["files"][0]
 
     def test_error_if_not_supported_file_content_type(
-            self, api_client, list_url, user, fake
+        self, api_client, list_url, user, fake
     ):
         api_client.force_authenticate(user=user)
 
         file = SimpleUploadedFile(
             "large.json",
             fake.json_file().encode("utf-8"),
-            content_type="application/pdf"
+            content_type="application/pdf",
         )
 
         data = {"files": [file]}
@@ -108,12 +111,14 @@ class TestFileUploadJobListCreateAPIView:
         assert response.data["files"][0].code == "required"
 
     def test_successful_single_file_upload(
-            self, api_client, list_url, user, fake, mock_process_file_upload_jobs
+        self, api_client, list_url, user, fake, mock_process_file_upload_jobs
     ):
         api_client.force_authenticate(user=user)
 
         file_content = fake.json_file().encode("utf-8")
-        test_file = SimpleUploadedFile("test.json", file_content, content_type="application/json")
+        test_file = SimpleUploadedFile(
+            "test.json", file_content, content_type="application/json"
+        )
         data = {"files": [test_file]}
 
         response = api_client.post(list_url, data, format="multipart")
@@ -130,7 +135,7 @@ class TestFileUploadJobListCreateAPIView:
         mock_process_file_upload_jobs.delay.assert_called_once_with([job.id])
 
     def test_successful_multiple_files_upload(
-            self, api_client, list_url, user, fake, mock_process_file_upload_jobs
+        self, api_client, list_url, user, fake, mock_process_file_upload_jobs
     ):
         api_client.force_authenticate(user=user)
 
@@ -140,7 +145,7 @@ class TestFileUploadJobListCreateAPIView:
                 SimpleUploadedFile(
                     f"test_{i}.json",
                     fake.json_file().encode("utf-8"),
-                    content_type="application/json"
+                    content_type="application/json",
                 ),
             )
 
@@ -218,38 +223,23 @@ class TestListeningActivityAPIView:
         response = api_client.get(listening_activity_url, {"type": "daily"})
         assert response.status_code == status.HTTP_200_OK
 
-    @pytest.mark.parametrize("activity_type, is_valid", [
-        ("", False),
-        ("daily", True),
-        ("monthly", True),
-        ("yearly", True),
-        ("invalid", False),
-    ])
+    @pytest.mark.parametrize(
+        "activity_type, is_valid",
+        [
+            ("", False),
+            ("daily", True),
+            ("monthly", True),
+            ("yearly", True),
+            ("invalid", False),
+        ],
+    )
     def test_activity_types(
-            self, api_client, listening_activity_url, user, activity_type, is_valid
+        self, api_client, listening_activity_url, user, activity_type, is_valid
     ):
         api_client.force_authenticate(user=user)
-        response = api_client.get(
-            listening_activity_url,
-            {"type": activity_type}
-        )
+        response = api_client.get(listening_activity_url, {"type": activity_type})
 
         if is_valid:
             assert response.status_code == status.HTTP_200_OK
         else:
             assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-    def test_returns_appropriate_data(
-            self, api_client, listening_activity_url, user, streaming_history_factory
-    ):
-        api_client.force_authenticate(user=user)
-
-        streaming_history_factory(user=user, played_at=datetime.datetime(2024, 10, 8, 12, 0, 0))
-        streaming_history_factory(user=user, played_at=datetime.datetime(2024, 9, 8, 12, 0, 0))
-        streaming_history_factory(user=user, played_at=datetime.datetime(2025, 1, 3, 12, 0, 0))
-
-        response = api_client.get(listening_activity_url, {"type": "yearly"})
-
-        for x in response.data:
-
-

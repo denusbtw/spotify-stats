@@ -18,8 +18,16 @@ class TestAlbumFactory:
     def test_creates_valid_instance(self, album_factory):
         album_ = album_factory()
         assert isinstance(album_, Album)
-        assert isinstance(album_.artist, Artist)
         assert isinstance(album_.name, str)
+
+
+@pytest.mark.django_db
+class TestAlbumArtistFactory:
+
+    def test_creates_valid_instance(self, album_artist_factory):
+        album_artist = album_artist_factory()
+        assert isinstance(album_artist.album, Album)
+        assert isinstance(album_artist.artist, Artist)
 
 
 @pytest.mark.django_db
