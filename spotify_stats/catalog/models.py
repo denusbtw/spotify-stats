@@ -10,7 +10,7 @@ class Artist(UUIDModel, TimestampedModel):
 class Album(UUIDModel, TimestampedModel):
     name = models.CharField(max_length=255)
     primary_artist = models.ForeignKey(
-        Artist, on_delete=models.RESTRICT, related_name="primary_albums", null=True
+        Artist, on_delete=models.RESTRICT, related_name="primary_albums"
     )
     # TODO: add `artists` M2M field when album will have spotify_album_uri
 
