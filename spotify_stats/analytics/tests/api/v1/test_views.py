@@ -15,7 +15,9 @@ def list_url():
 
 @pytest.fixture
 def mock_process_file_upload_jobs(mocker):
-    return mocker.patch("spotify_stats.analytics.api.v1.views.process_file_upload_jobs")
+    return mocker.patch(
+        "spotify_stats.analytics.api.v1.views.file_upload_job.process_file_upload_jobs"
+    )
 
 
 @pytest.fixture

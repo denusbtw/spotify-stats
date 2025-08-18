@@ -1,77 +1,25 @@
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import (
-    mixins,
     generics,
-    parsers,
     response,
     status,
     permissions,
     filters,
 )
 
-from .filters import (
-    ListeningFilterSet,
-    StreamingHistoryFilterSet,
+from ..filters import (
     TopArtistsFilterSet,
+    StreamingHistoryFilterSet,
     TopAlbumsFilterSet,
     TopTracksFilterSet,
+    ListeningFilterSet,
 )
-from .serializers import (
-    TopTracksSerializer,
-    TopAlbumsSerializer,
-    TopArtistsSerializer,
-    FileUploadJobListSerializer,
-    FileUploadJobCreateSerializer,
-)
-from spotify_stats.analytics.models import FileUploadJob, StreamingHistory
-from spotify_stats.analytics.tasks import process_file_upload_jobs
+from ..serializers import TopArtistsSerializer, TopAlbumsSerializer, TopTracksSerializer
+from spotify_stats.analytics.models import StreamingHistory
 from spotify_stats.analytics.service import StreamingAnalyticsService
 
 User = get_user_model()
-
-
-class FileUploadJobAPIView(mixins.ListModelMixin, generics.GenericAPIView):
-    permission_classes = [permissions.IsAuthenticated]
-    serializer_class = FileUploadJobListSerializer
-    filter_backends = [filters.OrderingFilter]
-    parser_classes = [parsers.MultiPartParser]
-    ordering = "-created_at"
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        return FileUploadJob.objects.filter(user=self.request.user)
-
-    def post(self, request, *args, **kwargs):
-        serializer = FileUploadJobCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        files = serializer.validated_data["files"]
-        objs_to_create = []
-        for file in files:
-            user = self.request.user
-
-            objs_to_create.append(
-                FileUploadJob(user=user, file=file, status=FileUploadJob.Status.PENDING)
-            )
-
-        jobs = FileUploadJob.objects.bulk_create(objs_to_create)
-
-        job_ids = [job.id for job in jobs]
-        process_file_upload_jobs.delay(job_ids)
-
-        return response.Response(
-            "Files accepted for processing."
-            f" Job ids: {', '.join([str(job.id) for job in jobs]) }",
-            status=status.HTTP_202_ACCEPTED,
-        )
-
-
-# TODO:
-class FileUploadJobDetailAPIView(generics.RetrieveDestroyAPIView):
-    pass
 
 
 class TopArtistsAPIView(generics.ListAPIView):
