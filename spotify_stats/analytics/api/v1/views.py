@@ -1,7 +1,6 @@
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import (
-    serializers,
     mixins,
     generics,
     parsers,
@@ -18,41 +17,18 @@ from .filters import (
     TopAlbumsFilterSet,
     TopTracksFilterSet,
 )
-from .serializers import TopTracksSerializer, TopAlbumsSerializer, TopArtistsSerializer
+from .serializers import (
+    TopTracksSerializer,
+    TopAlbumsSerializer,
+    TopArtistsSerializer,
+    FileUploadJobListSerializer,
+    FileUploadJobCreateSerializer,
+)
 from spotify_stats.analytics.models import FileUploadJob, StreamingHistory
 from spotify_stats.analytics.tasks import process_file_upload_jobs
 from spotify_stats.analytics.service import StreamingAnalyticsService
 
 User = get_user_model()
-
-
-class FileUploadJobListSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FileUploadJob
-        fields = ("id", "file", "status", "created_at", "updated_at")
-
-
-class FileUploadJobCreateSerializer(serializers.Serializer):
-    files = serializers.ListField(child=serializers.FileField())
-
-    def validate_files(self, files):
-        ALLOWED_MIME_TYPES = ["application/json", "test/json"]
-        MAX_FILE_SIZE_MB = 13
-        MAX_FILE_SIZE_B = MAX_FILE_SIZE_MB * 1024 * 1024
-
-        for file in files:
-            if file.size > MAX_FILE_SIZE_B:
-                raise serializers.ValidationError(
-                    f"File {file.name} size exceeds {MAX_FILE_SIZE_MB}mb limit."
-                )
-
-            if file.content_type not in ALLOWED_MIME_TYPES:
-                raise serializers.ValidationError(
-                    f"File {file.name} mime type is not supported. "
-                    f"Supported mime types: {','.join(ALLOWED_MIME_TYPES)}"
-                )
-
-        return files
 
 
 class FileUploadJobAPIView(mixins.ListModelMixin, generics.GenericAPIView):
