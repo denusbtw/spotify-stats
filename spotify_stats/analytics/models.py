@@ -1,6 +1,13 @@
 from django.db import models
 
+from spotify_stats.catalog.models import Track, Album, Artist
 from spotify_stats.core.models import TimestampedModel, UUIDModel
+
+
+class StreamingHistoryQuerySet(models.QuerySet):
+
+    def for_user(self, user):
+        return self.filter(user=user)
 
 
 class StreamingHistory(UUIDModel, TimestampedModel):
@@ -12,6 +19,8 @@ class StreamingHistory(UUIDModel, TimestampedModel):
     )
     played_at = models.DateTimeField() # 'ts'
     ms_played = models.PositiveIntegerField()
+
+    objects = StreamingHistoryQuerySet.as_manager()
 
     def __str__(self):
         return f"{self.user.username} - {self.track.name}: {self.played_at.strftime('%Y/%m/%d, %H:%M:%S')}"
