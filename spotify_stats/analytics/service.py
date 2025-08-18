@@ -25,7 +25,7 @@ class StreamingAnalyticsService:
         return (
             Album.objects.filter(tracks__history__in=base_queryset)
             .select_related("primary_artist")
-            .prefetch_related("album_artists")
+            .prefetch_related("artists")
             .annotate(
                 total_ms_played=Sum("tracks__history__ms_played"),
                 play_count=Count("tracks__history__id"),

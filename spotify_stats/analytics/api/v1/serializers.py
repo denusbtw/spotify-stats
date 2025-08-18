@@ -25,7 +25,7 @@ class TopArtistsSerializer(BaseTopSerializer):
 
 
 class TopAlbumsSerializer(BaseTopSerializer):
-    artists = serializers.SerializerMethodField(read_only=True)
+    artists = serializers.ListSerializer(child=ArtistSerializer())
 
     class Meta:
         model = Album
@@ -38,17 +38,6 @@ class TopAlbumsSerializer(BaseTopSerializer):
             "play_count",
         )
         read_only_fields = fields
-
-    def get_artists(self, album):
-        serialized_artists = []
-
-        if album.primary_artist:
-            serialized_artists.append(ArtistSerializer(album.primary_artist).data)
-
-        serialized_artists += ArtistSerializer(
-            [aa.artist for aa in album.album_artists.all()], many=True
-        ).data
-        return serialized_artists
 
 
 class TopTracksSerializer(BaseTopSerializer):

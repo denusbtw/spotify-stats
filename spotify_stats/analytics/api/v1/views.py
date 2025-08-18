@@ -9,7 +9,6 @@ from rest_framework import (
     status,
     permissions,
     filters,
-    pagination,
 )
 
 from .filters import (
@@ -128,7 +127,7 @@ class TopAlbumsAPIView(generics.ListAPIView):
         DjangoFilterBackend,
     ]
     filterset_class = TopAlbumsFilterSet
-    search_fields = ["name", "primary_artist__name", "album_artists__artist__name"]
+    search_fields = ["name", "artists__name"]
     ordering_fields = ["total_ms_played", "play_count"]
     ordering = "-play_count"
 

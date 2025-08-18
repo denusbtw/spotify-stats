@@ -27,21 +27,3 @@ class TestTopAlbumsSerializer:
 
         serializer = TopAlbumsSerializer(album)
         assert serializer.data["total_mins_played"] == 2
-
-    def test_artists_include_primary_artist_and_featured(
-        self, album_factory, artist_factory, album_artist_factory
-    ):
-        primary_artist = artist_factory()
-        featured_artist = artist_factory()
-
-        album = album_factory(primary_artist=primary_artist)
-        album_artist_factory(album=album, artist=featured_artist)
-
-        album.total_ms_played = 0
-        album.play_count = 0
-
-        serializer = TopAlbumsSerializer(album)
-
-        actual_artist_ids = [a["id"] for a in serializer.data["artists"]]
-        expected_artist_ids = [str(primary_artist.id), str(featured_artist.id)]
-        assert actual_artist_ids == expected_artist_ids
