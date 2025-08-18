@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from spotify_stats.catalog.api.v1.serializers import ArtistSerializer
+from spotify_stats.catalog.api.v1.serializers import ArtistSerializer, AlbumSerializer
 from spotify_stats.catalog.models import Track, Album, Artist
 
 
@@ -53,14 +53,14 @@ class TopAlbumsSerializer(BaseTopSerializer):
 
 class TopTracksSerializer(BaseTopSerializer):
     artists = serializers.ListSerializer(child=ArtistSerializer())
-    album = serializers.CharField(source="album.name", read_only=True)
+    albums = serializers.ListSerializer(child=AlbumSerializer())
 
     class Meta:
         model = Track
         fields = (
             "id",
             "artists",
-            "album",
+            "albums",
             "name",
             "spotify_track_uri",
             "total_ms_played",

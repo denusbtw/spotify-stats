@@ -242,7 +242,7 @@ class TestProcessSingleRecord:
 
         track = Track.objects.first()
         assert track.artists.contains(artist)
-        assert track.album == album
+        assert track.albums.contains(album)
         assert track.name == valid_record["master_metadata_track_name"]
         assert track.spotify_track_uri == valid_record["spotify_track_uri"]
 

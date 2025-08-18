@@ -36,7 +36,6 @@ class TestTrackFactory:
     def test_creates_valid_instance(self, track_factory):
         track_ = track_factory()
         assert isinstance(track_, Track)
-        assert isinstance(track_.album, Album)
         assert isinstance(track_.name, str)
         assert isinstance(track_.spotify_track_uri, str)
 
@@ -52,3 +51,12 @@ class TestTrackArtistFactory:
         track_artist = track_artist_factory()
         assert isinstance(track_artist.track, Track)
         assert isinstance(track_artist.artist, Artist)
+
+
+@pytest.mark.django_db
+class TestTrackAlbumFactory:
+
+    def test_creates_valid_instance(self, track_album_factory):
+        track_album = track_album_factory()
+        assert isinstance(track_album.track, Track)
+        assert isinstance(track_album.album, Album)

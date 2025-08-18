@@ -151,7 +151,7 @@ class TopTracksAPIView(generics.ListAPIView):
     search_fields = [
         "name",
         "artists__name",
-        "album__name",
+        "albums__name",
     ]
     ordering_fields = ["total_ms_played", "play_count"]
     ordering = "-play_count"

@@ -1,6 +1,6 @@
 from django.db import models
+from django.conf import settings
 
-from spotify_stats.catalog.models import Track, Album, Artist
 from spotify_stats.core.models import TimestampedModel, UUIDModel
 
 
@@ -11,13 +11,11 @@ class StreamingHistoryQuerySet(models.QuerySet):
 
 
 class StreamingHistory(UUIDModel, TimestampedModel):
-    user = models.ForeignKey("users.User", on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     track = models.ForeignKey(
-        "catalog.Track",
-        on_delete=models.CASCADE,
-        related_name="history"
+        "catalog.Track", on_delete=models.CASCADE, related_name="history"
     )
-    played_at = models.DateTimeField() # 'ts'
+    played_at = models.DateTimeField()  # 'ts'
     ms_played = models.PositiveIntegerField()
 
     objects = StreamingHistoryQuerySet.as_manager()
@@ -33,6 +31,6 @@ class FileUploadJob(UUIDModel, TimestampedModel):
         COMPLETED = ("completed", "Completed")
         FAILED = ("failed", "Failed")
 
-    user = models.ForeignKey("users.User", on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     file = models.FileField()
     status = models.CharField(max_length=15, choices=Status.choices)

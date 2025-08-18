@@ -1,7 +1,14 @@
 import factory
 from faker import Faker
 
-from spotify_stats.catalog.models import Album, Artist, Track, AlbumArtist, TrackArtist
+from spotify_stats.catalog.models import (
+    Album,
+    Artist,
+    Track,
+    AlbumArtist,
+    TrackArtist,
+    TrackAlbum,
+)
 
 fake = Faker()
 
@@ -30,7 +37,6 @@ class AlbumArtistFactory(factory.django.DjangoModelFactory):
 
 
 class TrackFactory(factory.django.DjangoModelFactory):
-    album = factory.SubFactory(AlbumFactory)
     name = factory.LazyFunction(lambda: fake.word())
     spotify_track_uri = factory.Sequence(lambda n: f"spotify:track:test_track_{n}")
 
@@ -44,3 +50,11 @@ class TrackArtistFactory(factory.django.DjangoModelFactory):
 
     class Meta:
         model = TrackArtist
+
+
+class TrackAlbumFactory(factory.django.DjangoModelFactory):
+    track = factory.SubFactory(TrackFactory)
+    album = factory.SubFactory(AlbumFactory)
+
+    class Meta:
+        model = TrackAlbum

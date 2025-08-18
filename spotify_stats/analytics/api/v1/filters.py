@@ -104,7 +104,9 @@ class ListeningFilterSet(filters.FilterSet):
     artist = filters.CharFilter(
         field_name="track__artists__name", lookup_expr="icontains"
     )
-    album = filters.CharFilter(field_name="track__album__name", lookup_expr="icontains")
+    album = filters.CharFilter(
+        field_name="track__albums__name", lookup_expr="icontains"
+    )
     track = filters.CharFilter(field_name="track", lookup_expr="icontains")
 
     ms_played_min = filters.NumberFilter(field_name="ms_played", lookup_expr="gte")
