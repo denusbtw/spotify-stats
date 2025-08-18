@@ -22,115 +22,113 @@ from spotify_stats.analytics.service import StreamingAnalyticsService
 User = get_user_model()
 
 
-class TopArtistsAPIView(generics.ListAPIView):
+class BaseTopItemsAPIView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = TopArtistsSerializer
+    serializer_class = None
     filter_backends = [
         filters.OrderingFilter,
         filters.SearchFilter,
         DjangoFilterBackend,
     ]
-    filterset_class = TopArtistsFilterSet
-    search_fields = ["name"]
+    filterset_class = None
+    search_fields = []
     ordering_fields = ["total_ms_played", "play_count"]
     ordering = "-play_count"
 
-    def get_queryset(self):
-        base_queryset = StreamingHistory.objects.for_user(self.request.user)
+    def get_base_queryset(self):
+        return StreamingHistory.objects.for_user(self.request.user)
+
+    def get_filtered_streaming_history(self):
+        base_queryset = self.get_base_queryset()
         filterset = StreamingHistoryFilterSet(self.request.query_params, base_queryset)
-        queryset = filterset.qs
+        return filterset.qs
+
+
+class TopArtistsAPIView(BaseTopItemsAPIView):
+    serializer_class = TopArtistsSerializer
+    filterset_class = TopArtistsFilterSet
+    search_fields = ["name"]
+
+    def get_queryset(self):
+        queryset = self.get_filtered_streaming_history()
         return StreamingAnalyticsService.top_artists(queryset)
 
 
-class TopAlbumsAPIView(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+class TopAlbumsAPIView(BaseTopItemsAPIView):
     serializer_class = TopAlbumsSerializer
-    filter_backends = [
-        filters.OrderingFilter,
-        filters.SearchFilter,
-        DjangoFilterBackend,
-    ]
     filterset_class = TopAlbumsFilterSet
     search_fields = ["name", "artists__name"]
-    ordering_fields = ["total_ms_played", "play_count"]
-    ordering = "-play_count"
 
     def get_queryset(self):
-        base_queryset = StreamingHistory.objects.for_user(self.request.user)
-        filterset = StreamingHistoryFilterSet(self.request.query_params, base_queryset)
-        queryset = filterset.qs
+        queryset = self.get_filtered_streaming_history()
         return StreamingAnalyticsService.top_albums(queryset)
 
 
-class TopTracksAPIView(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+class TopTracksAPIView(BaseTopItemsAPIView):
     serializer_class = TopTracksSerializer
-    filter_backends = [
-        filters.OrderingFilter,
-        filters.SearchFilter,
-        DjangoFilterBackend,
-    ]
     filterset_class = TopTracksFilterSet
     search_fields = [
         "name",
         "artists__name",
         "albums__name",
     ]
-    ordering_fields = ["total_ms_played", "play_count"]
-    ordering = "-play_count"
 
     def get_queryset(self):
-        base_queryset = StreamingHistory.objects.for_user(self.request.user)
-        filterset = StreamingHistoryFilterSet(self.request.query_params, base_queryset)
-        queryset = filterset.qs
+        queryset = self.get_filtered_streaming_history()
         return StreamingAnalyticsService.top_tracks(queryset)
 
 
-class ListeningStatsAPIView(generics.GenericAPIView):
+class BaseListeningAPIView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return StreamingHistory.objects.for_user(self.request.user)
+
+
+class ListeningStatsAPIView(BaseListeningAPIView):
     filter_backends = [DjangoFilterBackend]
     filterset_class = ListeningFilterSet
 
-    def get_queryset(self):
-        return StreamingHistory.objects.for_user(self.request.user)
-
     def get(self, request, *args, **kwargs):
-        filtered_queryset = self.filter_queryset(self.get_queryset())
-        stats = StreamingAnalyticsService.listening_stats(filtered_queryset)
+        streaming_history_qs = self.filter_queryset(self.get_queryset())
+        stats = StreamingAnalyticsService.listening_stats(streaming_history_qs)
         return response.Response(stats)
 
 
-class ListeningActivityAPIView(generics.GenericAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+class ListeningActivityAPIView(BaseListeningAPIView):
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["tracks_played", "total_ms_played"]
 
-    def get_queryset(self):
-        return StreamingHistory.objects.for_user(self.request.user)
-
     def get(self, request, *args, **kwargs):
-        filtered_streaming_history = ListeningFilterSet(
-            self.request.query_params, self.get_queryset()
-        )
-        streaming_history_qs = filtered_streaming_history.qs
+        streaming_history_qs = self.get_filtered_streaming_history()
 
-        activity_types_mapping = {
+        activity_type = request.query_params.get("type")
+        method_name = self.get_method_name_by_activity_type(activity_type)
+        if method_name is None:
+            return response.Response(
+                {
+                    "detail": "Invalid activity type. Allowed: %s"
+                    % ", ".join(self.get_allowed_activity_types_mapping().keys())
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        activity = getattr(StreamingAnalyticsService, method_name)(streaming_history_qs)
+        filtered_activity = self.filter_queryset(activity)
+        return response.Response(filtered_activity)
+
+    def get_method_name_by_activity_type(self, activity_type) -> str | None:
+        mapping = self.get_allowed_activity_types_mapping()
+        return mapping.get(activity_type)
+
+    def get_allowed_activity_types_mapping(self):
+        return {
             "yearly": "yearly_activity",
             "monthly": "monthly_activity",
             "daily": "daily_activity",
         }
 
-        activity_type = request.query_params.get("type")
-        if activity_type not in activity_types_mapping:
-            return response.Response(
-                {
-                    "detail": f"Invalid activity type. Allowed: {list(activity_types_mapping.keys())}"
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        method_name = activity_types_mapping.get(activity_type)
-        activity = getattr(StreamingAnalyticsService, method_name)(streaming_history_qs)
-
-        filtered_activity = self.filter_queryset(activity)
-        return response.Response(filtered_activity)
+    def get_filtered_streaming_history(self):
+        streaming_history_qs = self.get_queryset()
+        filterset = ListeningFilterSet(self.request.query_params, streaming_history_qs)
+        return filterset.qs
