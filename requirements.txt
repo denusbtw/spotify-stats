@@ -11,3 +11,5 @@ flower~=2.0.1
 celery~=5.5.3
 faker-file[common]~=0.18.4
 pytest-mock~=3.14.1
+django-filter~=25.1
+django-debug-toolbar~=6.0.0
