@@ -244,7 +244,7 @@ class TestProcessSingleRecord:
         assert track.artists.contains(artist)
         assert track.albums.contains(album)
         assert track.name == valid_record["master_metadata_track_name"]
-        assert track.spotify_track_uri == valid_record["spotify_track_uri"]
+        assert track.spotify_uri == valid_record["spotify_track_uri"]
 
         history_obj = StreamingHistory.objects.first()
         assert history_obj.user == user

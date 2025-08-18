@@ -38,7 +38,7 @@ class AlbumArtistFactory(factory.django.DjangoModelFactory):
 
 class TrackFactory(factory.django.DjangoModelFactory):
     name = factory.LazyFunction(lambda: fake.word())
-    spotify_track_uri = factory.Sequence(lambda n: f"spotify:track:test_track_{n}")
+    spotify_uri = factory.Sequence(lambda n: f"spotify:track:test_track_{n}")
 
     class Meta:
         model = Track

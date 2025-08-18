@@ -33,7 +33,7 @@ class AlbumArtist(UUIDModel, TimestampedModel):
 
 class Track(UUIDModel, TimestampedModel):
     name = models.CharField(max_length=255)
-    spotify_track_uri = models.CharField(max_length=50, unique=True)
+    spotify_uri = models.CharField(max_length=50, unique=True)
     artists = models.ManyToManyField(
         Artist, through="TrackArtist", related_name="tracks"
     )

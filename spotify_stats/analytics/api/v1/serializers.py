@@ -62,7 +62,7 @@ class TopTracksSerializer(BaseTopSerializer):
             "artists",
             "albums",
             "name",
-            "spotify_track_uri",
+            "spotify_uri",
             "total_ms_played",
             "total_mins_played",
             "play_count",

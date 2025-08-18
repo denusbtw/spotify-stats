@@ -62,14 +62,6 @@ def process_single_job(job):
     return True
 
 
-# Big Baby Tape, kizaru - 99 PROBLEMS (BANDANA I)
-# {
-#     "artist_name": "Big Baby Tape",
-#     "album_name": "BANDANA I",
-#     "track_name": "99 PROBLEMS"
-# }
-
-
 def process_single_record(record, user):
     if not isinstance(record, dict):
         log.debug("Invalid record type: %s" % type(record))
@@ -126,7 +118,7 @@ def process_single_record(record, user):
         album, _ = Album.objects.get_or_create(name=album_name, primary_artist=artist)
 
         track, _ = Track.objects.get_or_create(
-            spotify_track_uri=spotify_track_uri,
+            spotify_uri=spotify_track_uri,
             defaults={"name": track_name},
         )
 
