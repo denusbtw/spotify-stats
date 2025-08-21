@@ -88,8 +88,16 @@ class StreamingAnalyticsService:
             .values("year")
             .annotate(
                 total_ms_played=Sum("ms_played"),
-                total_mins_played=Sum("ms_played") / 1000 / 60,
-                total_hours_played=Sum("ms_played") / 1000 / 60 / 60,
+                total_mins_played=Coalesce(
+                    Round(Cast(Sum("ms_played"), FloatField()) / 1000 / 60, 2),
+                    0,
+                    output_field=FloatField(),
+                ),
+                total_hours_played=Coalesce(
+                    Round(Cast(Sum("ms_played"), FloatField()) / 1000 / 60 / 60, 2),
+                    0,
+                    output_field=FloatField(),
+                ),
                 tracks_played=Count("id"),
             )
             .order_by("year")
@@ -102,8 +110,16 @@ class StreamingAnalyticsService:
             .values("month")
             .annotate(
                 total_ms_played=Sum("ms_played"),
-                total_mins_played=Sum("ms_played") / 1000 / 60,
-                total_hours_played=Sum("ms_played") / 1000 / 60 / 60,
+                total_mins_played=Coalesce(
+                    Round(Cast(Sum("ms_played"), FloatField()) / 1000 / 60, 2),
+                    0,
+                    output_field=FloatField(),
+                ),
+                total_hours_played=Coalesce(
+                    Round(Cast(Sum("ms_played"), FloatField()) / 1000 / 60 / 60, 2),
+                    0,
+                    output_field=FloatField(),
+                ),
                 tracks_played=Count("id"),
             )
             .order_by("month")
@@ -116,8 +132,16 @@ class StreamingAnalyticsService:
             .values("date")
             .annotate(
                 total_ms_played=Sum("ms_played"),
-                total_mins_played=Sum("ms_played") / 1000 / 60,
-                total_hours_played=Sum("ms_played") / 1000 / 60 / 60,
+                total_mins_played=Coalesce(
+                    Round(Cast(Sum("ms_played"), FloatField()) / 1000 / 60, 2),
+                    0,
+                    output_field=FloatField(),
+                ),
+                total_hours_played=Coalesce(
+                    Round(Cast(Sum("ms_played"), FloatField()) / 1000 / 60 / 60, 2),
+                    0,
+                    output_field=FloatField(),
+                ),
                 tracks_played=Count("id"),
             )
             .order_by("date")
