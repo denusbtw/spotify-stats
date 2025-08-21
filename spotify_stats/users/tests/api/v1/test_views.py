@@ -11,18 +11,24 @@ def url():
 @pytest.mark.django_db
 class TestMeDetailAPIView:
 
-    @pytest.mark.parametrize("method, expected_status", [
-        ("get", status.HTTP_403_FORBIDDEN),
-        ("patch", status.HTTP_403_FORBIDDEN),
-    ])
+    @pytest.mark.parametrize(
+        "method, expected_status",
+        [
+            ("get", status.HTTP_401_UNAUTHORIZED),
+            ("patch", status.HTTP_401_UNAUTHORIZED),
+        ],
+    )
     def test_anonymous_user(self, api_client, url, method, expected_status):
         response = getattr(api_client, method)(url)
         assert response.status_code == expected_status
 
-    @pytest.mark.parametrize("method, expected_status", [
-        ("get", status.HTTP_200_OK),
-        ("patch", status.HTTP_200_OK),
-    ])
+    @pytest.mark.parametrize(
+        "method, expected_status",
+        [
+            ("get", status.HTTP_200_OK),
+            ("patch", status.HTTP_200_OK),
+        ],
+    )
     def test_authenticated_user(self, api_client, url, user, method, expected_status):
         api_client.force_authenticate(user=user)
         response = getattr(api_client, method)(url)

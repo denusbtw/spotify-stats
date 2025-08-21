@@ -1,4 +1,5 @@
 import socket
+from datetime import timedelta
 
 from .base import *
 
@@ -17,3 +18,8 @@ INTERNAL_IPS = [
 ]
 
 INTERNAL_IPS += [ip[: ip.rfind(".")] + ".1" for ip in ips]
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
+}

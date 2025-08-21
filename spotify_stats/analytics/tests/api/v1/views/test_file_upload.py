@@ -24,8 +24,8 @@ class TestUserFileUploadJobListCreateView:
     @pytest.mark.parametrize(
         "method, expected_status",
         [
-            ("get", status.HTTP_403_FORBIDDEN),
-            ("post", status.HTTP_403_FORBIDDEN),
+            ("get", status.HTTP_401_UNAUTHORIZED),
+            ("post", status.HTTP_401_UNAUTHORIZED),
         ],
     )
     def test_anonymous_user(self, api_client, file_upload_url, method, expected_status):

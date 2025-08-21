@@ -33,7 +33,7 @@ class TestUserTopArtistsListView:
 
     def test_anonymous(self, api_client, top_artists_url):
         response = api_client.get(top_artists_url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_authenticated(self, api_client, top_artists_url, user):
         api_client.force_authenticate(user=user)
@@ -46,7 +46,7 @@ class TestUserTopAlbumsListView:
 
     def test_anonymous(self, api_client, top_albums_url):
         response = api_client.get(top_albums_url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_authenticated(self, api_client, top_albums_url, user):
         api_client.force_authenticate(user=user)
@@ -59,7 +59,7 @@ class TestUserTopTracksListView:
 
     def test_anonymous(self, api_client, top_tracks_url):
         response = api_client.get(top_tracks_url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_authenticated(self, api_client, top_tracks_url, user):
         api_client.force_authenticate(user=user)
@@ -72,7 +72,7 @@ class TestUserListeningStatsView:
 
     def test_anonymous(self, api_client, listening_stats_url):
         response = api_client.get(listening_stats_url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_authenticated(self, api_client, listening_stats_url, user):
         api_client.force_authenticate(user=user)
@@ -85,7 +85,7 @@ class TestUserListeningActivityView:
 
     def test_anonymous(self, api_client, listening_activity_url):
         response = api_client.get(listening_activity_url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_authenticated(self, api_client, listening_activity_url, user):
         api_client.force_authenticate(user=user)
