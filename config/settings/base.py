@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "django_filters",
     "rest_framework_simplejwt",
+    "corsheaders",
     "spotify_stats.core",
     "spotify_stats.users",
     "spotify_stats.catalog",
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
 
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
