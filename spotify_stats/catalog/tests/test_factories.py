@@ -37,11 +37,7 @@ class TestTrackFactory:
         track_ = track_factory()
         assert isinstance(track_, Track)
         assert isinstance(track_.name, str)
-        assert isinstance(track_.spotify_uri, str)
-
-    def test_valid_spotify_uri(self, track_factory):
-        track_ = track_factory()
-        assert "spotify:track:test_track_" in track_.spotify_uri
+        assert isinstance(track_.spotify_id, str)
 
 
 @pytest.mark.django_db

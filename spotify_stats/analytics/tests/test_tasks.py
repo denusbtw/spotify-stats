@@ -154,7 +154,6 @@ class TestProcessSingleRecord:
             ("master_metadata_album_artist_name", True),
             ("master_metadata_album_album_name", True),
             ("spotify_track_uri", True),
-            ("spotify_track_uri", True),
             ("platform", False),
         ],
     )
@@ -244,7 +243,7 @@ class TestProcessSingleRecord:
         assert track.artists.contains(artist)
         assert track.albums.contains(album)
         assert track.name == valid_record["master_metadata_track_name"]
-        assert track.spotify_uri == valid_record["spotify_track_uri"]
+        assert track.spotify_id in valid_record["spotify_track_uri"]
 
         history_obj = ListeningHistory.objects.first()
         assert history_obj.user == user

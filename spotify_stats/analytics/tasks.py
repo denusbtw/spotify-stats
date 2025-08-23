@@ -76,8 +76,6 @@ def process_single_record(record: dict[str, Any], user: User) -> bool:
     track_name = safe_strip(record.get("master_metadata_track_name"))
     artist_name = safe_strip(record.get("master_metadata_album_artist_name"))
     album_name = safe_strip(record.get("master_metadata_album_album_name"))
-
-    # TODO: зберігати лише ID, без `spotify:track:`
     spotify_track_uri = safe_strip(record.get("spotify_track_uri"))
 
     missing_fields = []
@@ -123,8 +121,10 @@ def process_single_record(record: dict[str, Any], user: User) -> bool:
         # featured artists will be handled when populating db with spotify api
         album, _ = Album.objects.get_or_create(name=album_name, primary_artist=artist)
 
+        spotify_id = spotify_track_uri.split(":")[-1]
+
         track, _ = Track.objects.get_or_create(
-            spotify_uri=spotify_track_uri,
+            spotify_id=spotify_id,
             defaults={"name": track_name},
         )
 

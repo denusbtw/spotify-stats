@@ -56,7 +56,7 @@ def track1(
     artist1,
     album1,
 ):
-    track = track_factory(name="track1", spotify_uri="spotify:track:1")
+    track = track_factory(name="track1", spotify_id="1")
     track_artist_factory(track=track, artist=artist1)
     track_album_factory(track=track, album=album1)
     return track
@@ -70,7 +70,7 @@ def track2(
     artist1,
     album1,
 ):
-    track = track_factory(name="track2", spotify_uri="spotify:track:2")
+    track = track_factory(name="track2", spotify_id="2")
     track_artist_factory(track=track, artist=artist1)
     track_album_factory(track=track, album=album1)
     return track
@@ -78,7 +78,7 @@ def track2(
 
 @pytest.fixture
 def track3(track_factory, track_album_factory, track_artist_factory, artist2, album2):
-    track = track_factory(name="track3", spotify_uri="spotify:track:3")
+    track = track_factory(name="track3", spotify_id="3")
     track_artist_factory(track=track, artist=artist2)
     track_album_factory(track=track, album=album2)
     return track

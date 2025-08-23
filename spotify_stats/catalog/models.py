@@ -7,6 +7,7 @@ class Artist(UUIDModel, TimestampedModel):
     name = models.CharField(max_length=255)
 
 
+# TODO: remove primary_artist
 class Album(UUIDModel, TimestampedModel):
     name = models.CharField(max_length=255)
     primary_artist = models.ForeignKey(
@@ -25,9 +26,10 @@ class Album(UUIDModel, TimestampedModel):
         ]
 
 
+# TODO: FK to Album instead of M2M
 class Track(UUIDModel, TimestampedModel):
     name = models.CharField(max_length=255)
-    spotify_uri = models.CharField(max_length=50, unique=True)
+    spotify_id = models.CharField(max_length=62, unique=True)
     artists = models.ManyToManyField(
         Artist, through="TrackArtist", related_name="tracks"
     )
@@ -58,6 +60,7 @@ class TrackArtist(UUIDModel, TimestampedModel):
         ]
 
 
+# TODO: delete
 class TrackAlbum(UUIDModel, TimestampedModel):
     track = models.ForeignKey(Track, on_delete=models.CASCADE)
     album = models.ForeignKey(Album, on_delete=models.CASCADE)

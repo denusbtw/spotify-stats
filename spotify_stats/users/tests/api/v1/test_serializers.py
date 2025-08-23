@@ -1,8 +1,10 @@
 import pytest
 from rest_framework.exceptions import ValidationError
 
-from spotify_stats.users.api.v1.serializers import MeRetrieveSerializer, \
-    MeUpdateSerializer
+from spotify_stats.users.api.v1.serializers import (
+    MeRetrieveSerializer,
+    MeUpdateSerializer,
+)
 
 
 @pytest.mark.django_db
@@ -11,7 +13,14 @@ class TestMeRetrieveSerializer:
     def test_expected_fields(self, user):
         serializer = MeRetrieveSerializer(user)
         actual_fields = serializer.data.keys()
-        expected_fields = {"id", "username", "email", "first_name", "last_name", "date_joined"}
+        expected_fields = {
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "date_joined",
+        }
         assert actual_fields == expected_fields
 
 
@@ -32,7 +41,7 @@ class TestMeUpdateSerializer:
         assert serializer.is_valid(), serializer.errors
 
     def test_updates_user(self, user_factory):
-        user = user_factory(username="test_user")
+        user = user_factory(username="test_user", password="old_password")
 
         data = {"username": "new_username", "password": "new_password"}
         serializer = MeUpdateSerializer(user, data=data)
