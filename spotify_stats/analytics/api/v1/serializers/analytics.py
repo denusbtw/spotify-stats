@@ -52,16 +52,16 @@ class TopAlbumsSerializer(BaseTopSerializer, serializers.ModelSerializer):
 
 class TopTracksSerializer(BaseTopSerializer, serializers.ModelSerializer):
     artists = serializers.ListSerializer(child=ArtistNestedSerializer())
-    albums = serializers.ListSerializer(child=AlbumNestedSerializer())
+    album = AlbumNestedSerializer()
 
     class Meta:
         model = Track
         fields = (
             "id",
             "artists",
-            "albums",
+            "album",
             "name",
-            "spotify_uri",
+            "spotify_id",
             "total_ms_played",
             "total_mins_played",
             "play_count",

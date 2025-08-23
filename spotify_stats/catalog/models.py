@@ -26,14 +26,13 @@ class Album(UUIDModel, TimestampedModel):
         ]
 
 
-# TODO: FK to Album instead of M2M
 class Track(UUIDModel, TimestampedModel):
+    album = models.ForeignKey("Album", on_delete=models.CASCADE, related_name="tracks")
     name = models.CharField(max_length=255)
     spotify_id = models.CharField(max_length=62, unique=True)
     artists = models.ManyToManyField(
         Artist, through="TrackArtist", related_name="tracks"
     )
-    albums = models.ManyToManyField(Album, through="TrackAlbum", related_name="tracks")
 
 
 class AlbumArtist(UUIDModel, TimestampedModel):
@@ -56,18 +55,5 @@ class TrackArtist(UUIDModel, TimestampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["track", "artist"], name="unique_track_artist"
-            )
-        ]
-
-
-# TODO: delete
-class TrackAlbum(UUIDModel, TimestampedModel):
-    track = models.ForeignKey(Track, on_delete=models.CASCADE)
-    album = models.ForeignKey(Album, on_delete=models.CASCADE)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["track", "album"], name="unique_track_album"
             )
         ]

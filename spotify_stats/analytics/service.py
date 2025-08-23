@@ -39,7 +39,8 @@ class StreamingAnalyticsService:
     def top_tracks(base_queryset: QuerySet[ListeningHistory]) -> QuerySet[Track]:
         return (
             Track.objects.filter(history__in=base_queryset)
-            .prefetch_related("artists", "albums")
+            .select_related("album")
+            .prefetch_related("artists")
             .annotate(
                 total_ms_played=Sum("history__ms_played"),
                 play_count=Count("history__id"),
@@ -63,7 +64,7 @@ class StreamingAnalyticsService:
             total_tracks_played=Count("id"),
             unique_tracks=Count("track_id", distinct=True),
             unique_artists=Count("track__artists__id", distinct=True),
-            unique_albums=Count("track__albums__id", distinct=True),
+            unique_albums=Count("track__album_id", distinct=True),
             average_ms_played=Coalesce(Avg("ms_played"), 0, output_field=FloatField()),
             average_mins_played=Coalesce(
                 Round(Cast(Avg("ms_played"), FloatField()) / 1000 / 60, 2),

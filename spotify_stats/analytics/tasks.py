@@ -13,7 +13,6 @@ from spotify_stats.catalog.models import (
     Artist,
     Album,
     TrackArtist,
-    TrackAlbum,
 )
 
 log = logging.getLogger(__name__)
@@ -125,11 +124,10 @@ def process_single_record(record: dict[str, Any], user: User) -> bool:
 
         track, _ = Track.objects.get_or_create(
             spotify_id=spotify_id,
-            defaults={"name": track_name},
+            defaults={"name": track_name, "album": album},
         )
 
         TrackArtist.objects.get_or_create(track=track, artist=artist)
-        TrackAlbum.objects.get_or_create(track=track, album=album)
 
         ListeningHistory.objects.get_or_create(
             user=user,

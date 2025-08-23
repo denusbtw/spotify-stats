@@ -71,7 +71,7 @@ class UserTopTracksListView(BaseUserTopItemsListView):
     search_fields = [
         "name",
         "artists__name",
-        "albums__name",
+        "album__name",
     ]
 
     def get_queryset(self):
