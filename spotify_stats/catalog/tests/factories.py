@@ -21,7 +21,6 @@ class ArtistFactory(factory.django.DjangoModelFactory):
 
 class AlbumFactory(factory.django.DjangoModelFactory):
     name = factory.LazyFunction(lambda: fake.word())
-    primary_artist = factory.SubFactory(ArtistFactory)
 
     class Meta:
         model = Album

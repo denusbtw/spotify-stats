@@ -13,6 +13,7 @@ from spotify_stats.catalog.models import (
     Artist,
     Album,
     TrackArtist,
+    AlbumArtist,
 )
 
 log = logging.getLogger(__name__)
@@ -116,9 +117,8 @@ def process_single_record(record: dict[str, Any], user: User) -> bool:
     try:
         artist, _ = Artist.objects.get_or_create(name=artist_name)
 
-        # in data there is only 'artist_name' key which means primary artist
-        # featured artists will be handled when populating db with spotify api
-        album, _ = Album.objects.get_or_create(name=album_name, primary_artist=artist)
+        album, _ = Album.objects.get_or_create(name=album_name)
+        AlbumArtist.objects.get_or_create(album=album, artist=artist)
 
         spotify_id = spotify_track_uri.split(":")[-1]
 

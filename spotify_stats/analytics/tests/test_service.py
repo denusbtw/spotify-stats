@@ -34,18 +34,24 @@ def artist3(artist_factory):
 
 
 @pytest.fixture
-def album1(album_factory, artist1):
-    return album_factory(name="album1", primary_artist=artist1)
+def album1(album_factory, artist1, album_artist_factory):
+    album = album_factory(name="album1")
+    album_artist_factory(album=album, artist=artist1)
+    return album
 
 
 @pytest.fixture
-def album2(album_factory, artist2):
-    return album_factory(name="album2", primary_artist=artist2)
+def album2(album_factory, artist2, album_artist_factory):
+    album = album_factory(name="album2")
+    album_artist_factory(album=album, artist=artist2)
+    return album
 
 
 @pytest.fixture
-def album3(album_factory, artist3):
-    return album_factory(name="album3", primary_artist=artist3)
+def album3(album_factory, artist3, album_artist_factory):
+    album = album_factory(name="album3")
+    album_artist_factory(album=album, artist=artist3)
+    return album
 
 
 @pytest.fixture

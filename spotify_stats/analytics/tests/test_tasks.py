@@ -234,10 +234,9 @@ class TestProcessSingleRecord:
         assert artist.name == valid_record["master_metadata_album_artist_name"]
 
         album = Album.objects.first()
-        assert album.primary_artist == artist
         assert album.name == valid_record["master_metadata_album_album_name"]
 
-        assert AlbumArtist.objects.filter(album=album).count() == 0
+        assert AlbumArtist.objects.filter(album=album).count() == 1
 
         track = Track.objects.first()
         assert track.artists.contains(artist)

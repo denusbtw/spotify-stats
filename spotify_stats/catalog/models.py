@@ -7,23 +7,11 @@ class Artist(UUIDModel, TimestampedModel):
     name = models.CharField(max_length=255)
 
 
-# TODO: remove primary_artist
 class Album(UUIDModel, TimestampedModel):
     name = models.CharField(max_length=255)
-    primary_artist = models.ForeignKey(
-        Artist, on_delete=models.RESTRICT, related_name="primary_albums"
-    )
     artists = models.ManyToManyField(
         Artist, through="AlbumArtist", related_name="albums"
     )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["name", "primary_artist"],
-                name="unique_album_name_primary_artist",
-            )
-        ]
 
 
 class Track(UUIDModel, TimestampedModel):
