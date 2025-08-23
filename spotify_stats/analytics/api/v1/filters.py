@@ -35,6 +35,7 @@ class StreamingHistoryFilterSet(BaseStreamingHistoryFilterSet):
         ]
 
 
+# TODO: use id for filtering instead of names
 class ListeningFilterSet(BaseStreamingHistoryFilterSet):
     artist = filters.CharFilter(
         field_name="track__artists__name", lookup_expr="icontains"
@@ -42,7 +43,7 @@ class ListeningFilterSet(BaseStreamingHistoryFilterSet):
     album = filters.CharFilter(
         field_name="track__albums__name", lookup_expr="icontains"
     )
-    track = filters.CharFilter(field_name="track", lookup_expr="icontains")
+    track = filters.CharFilter(field_name="track__name", lookup_expr="icontains")
 
     class Meta:
         model = StreamingHistory
