@@ -4,18 +4,18 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from spotify_stats.analytics.models import StreamingHistory, FileUploadJob
+from spotify_stats.analytics.models import ListeningHistory, FileUploadJob
 from spotify_stats.catalog.models import Track
 
 User = get_user_model()
 
 
 @pytest.mark.django_db
-class TestStreamingHistoryFactory:
+class TestListeningHistoryFilterSet:
 
-    def test_creates_valid_instance(self, streaming_history_factory):
-        st_hi = streaming_history_factory()
-        assert isinstance(st_hi, StreamingHistory)
+    def test_creates_valid_instance(self, listening_history_factory):
+        st_hi = listening_history_factory()
+        assert isinstance(st_hi, ListeningHistory)
         assert isinstance(st_hi.user, User)
         assert isinstance(st_hi.track, Track)
         assert isinstance(st_hi.played_at, datetime.datetime)

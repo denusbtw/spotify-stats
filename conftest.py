@@ -6,7 +6,7 @@ from faker_file.providers.json_file import JsonFileProvider
 from rest_framework.test import APIClient
 
 from spotify_stats.analytics.tests.factories import (
-    StreamingHistoryFactory,
+    ListeningHistoryFactory,
     FileUploadJobFactory,
 )
 from spotify_stats.catalog.tests.factories import (
@@ -76,8 +76,8 @@ def track_album_factory():
 
 
 @pytest.fixture
-def streaming_history_factory():
-    return StreamingHistoryFactory
+def listening_history_factory():
+    return ListeningHistoryFactory
 
 
 @pytest.fixture

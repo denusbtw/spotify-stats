@@ -1,10 +1,10 @@
 from django_filters import rest_framework as filters
 
-from spotify_stats.analytics.models import StreamingHistory
+from spotify_stats.analytics.models import ListeningHistory
 from spotify_stats.catalog.models import Track, Album, Artist
 
 
-class BaseStreamingHistoryFilterSet(filters.FilterSet):
+class BaseListeningHistoryFilterSet(filters.FilterSet):
     played_at = filters.DateFromToRangeFilter()
     year = filters.NumberFilter(field_name="played_at", lookup_expr="year")
     month = filters.NumberFilter(field_name="played_at", lookup_expr="month")
@@ -15,14 +15,14 @@ class BaseStreamingHistoryFilterSet(filters.FilterSet):
     ms_played_max = filters.NumberFilter(field_name="ms_played", lookup_expr="lte")
 
     class Meta:
-        model = StreamingHistory
+        model = ListeningHistory
         fields = []
 
 
-class StreamingHistoryFilterSet(BaseStreamingHistoryFilterSet):
+class ListeningHistoryFilterSet(BaseListeningHistoryFilterSet):
 
     class Meta:
-        model = StreamingHistory
+        model = ListeningHistory
         fields = [
             "played_at",
             "year",
@@ -36,7 +36,7 @@ class StreamingHistoryFilterSet(BaseStreamingHistoryFilterSet):
 
 
 # TODO: use id for filtering instead of names
-class ListeningFilterSet(BaseStreamingHistoryFilterSet):
+class ListeningStatsActivityFilterSet(BaseListeningHistoryFilterSet):
     artist = filters.CharFilter(
         field_name="track__artists__name", lookup_expr="icontains"
     )
@@ -46,7 +46,7 @@ class ListeningFilterSet(BaseStreamingHistoryFilterSet):
     track = filters.CharFilter(field_name="track__name", lookup_expr="icontains")
 
     class Meta:
-        model = StreamingHistory
+        model = ListeningHistory
         fields = [
             "played_at",
             "year",

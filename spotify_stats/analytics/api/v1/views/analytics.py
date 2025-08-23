@@ -11,13 +11,13 @@ from rest_framework import (
 
 from ..filters import (
     TopArtistsFilterSet,
-    StreamingHistoryFilterSet,
+    ListeningHistoryFilterSet,
     TopAlbumsFilterSet,
     TopTracksFilterSet,
-    ListeningFilterSet,
+    ListeningStatsActivityFilterSet,
 )
 from ..serializers import TopArtistsSerializer, TopAlbumsSerializer, TopTracksSerializer
-from spotify_stats.analytics.models import StreamingHistory
+from spotify_stats.analytics.models import ListeningHistory
 from spotify_stats.analytics.service import StreamingAnalyticsService
 
 User = get_user_model()
@@ -36,12 +36,12 @@ class BaseUserTopItemsListView(generics.ListAPIView):
     ordering_fields = ["total_ms_played", "play_count"]
     ordering = "-play_count"
 
-    def get_base_queryset(self) -> QuerySet[StreamingHistory]:
-        return StreamingHistory.objects.for_user(self.request.user)
+    def get_base_queryset(self) -> QuerySet[ListeningHistory]:
+        return ListeningHistory.objects.for_user(self.request.user)
 
-    def get_filtered_streaming_history(self) -> QuerySet[StreamingHistory]:
+    def get_filtered_listening_history(self) -> QuerySet[ListeningHistory]:
         base_queryset = self.get_base_queryset()
-        filterset = StreamingHistoryFilterSet(self.request.query_params, base_queryset)
+        filterset = ListeningHistoryFilterSet(self.request.query_params, base_queryset)
         return filterset.qs
 
 
@@ -51,7 +51,7 @@ class UserTopArtistsListView(BaseUserTopItemsListView):
     search_fields = ["name"]
 
     def get_queryset(self):
-        queryset = self.get_filtered_streaming_history()
+        queryset = self.get_filtered_listening_history()
         return StreamingAnalyticsService.top_artists(queryset)
 
 
@@ -61,7 +61,7 @@ class UserTopAlbumsListView(BaseUserTopItemsListView):
     search_fields = ["name", "artists__name"]
 
     def get_queryset(self):
-        queryset = self.get_filtered_streaming_history()
+        queryset = self.get_filtered_listening_history()
         return StreamingAnalyticsService.top_albums(queryset)
 
 
@@ -75,7 +75,7 @@ class UserTopTracksListView(BaseUserTopItemsListView):
     ]
 
     def get_queryset(self):
-        queryset = self.get_filtered_streaming_history()
+        queryset = self.get_filtered_listening_history()
         return StreamingAnalyticsService.top_tracks(queryset)
 
 
@@ -83,12 +83,12 @@ class BaseUserListeningView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return StreamingHistory.objects.for_user(self.request.user)
+        return ListeningHistory.objects.for_user(self.request.user)
 
 
 class UserListeningStatsView(BaseUserListeningView):
     filter_backends = [DjangoFilterBackend]
-    filterset_class = ListeningFilterSet
+    filterset_class = ListeningStatsActivityFilterSet
 
     def get(self, request, *args, **kwargs):
         streaming_history_qs = self.filter_queryset(self.get_queryset())
@@ -101,7 +101,7 @@ class UserListeningActivityView(BaseUserListeningView):
     ordering_fields = ["tracks_played", "total_ms_played"]
 
     def get(self, request, *args, **kwargs):
-        streaming_history_qs = self.get_filtered_streaming_history()
+        streaming_history_qs = self.get_filtered_listening_history()
 
         activity_type = request.query_params.get("type")
         method_name = self.get_method_name_by_activity_type(activity_type)
@@ -129,7 +129,9 @@ class UserListeningActivityView(BaseUserListeningView):
             "daily": "daily_activity",
         }
 
-    def get_filtered_streaming_history(self) -> QuerySet[StreamingHistory]:
+    def get_filtered_listening_history(self) -> QuerySet[ListeningHistory]:
         streaming_history_qs = self.get_queryset()
-        filterset = ListeningFilterSet(self.request.query_params, streaming_history_qs)
+        filterset = ListeningStatsActivityFilterSet(
+            self.request.query_params, streaming_history_qs
+        )
         return filterset.qs

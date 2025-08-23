@@ -7,7 +7,7 @@ from celery import shared_task
 from django.utils.dateparse import parse_datetime
 from django.contrib.auth import get_user_model
 
-from spotify_stats.analytics.models import FileUploadJob, StreamingHistory
+from spotify_stats.analytics.models import FileUploadJob, ListeningHistory
 from spotify_stats.catalog.models import (
     Track,
     Artist,
@@ -76,6 +76,8 @@ def process_single_record(record: dict[str, Any], user: User) -> bool:
     track_name = safe_strip(record.get("master_metadata_track_name"))
     artist_name = safe_strip(record.get("master_metadata_album_artist_name"))
     album_name = safe_strip(record.get("master_metadata_album_album_name"))
+
+    # TODO: зберігати лише ID, без `spotify:track:`
     spotify_track_uri = safe_strip(record.get("spotify_track_uri"))
 
     missing_fields = []
@@ -129,7 +131,7 @@ def process_single_record(record: dict[str, Any], user: User) -> bool:
         TrackArtist.objects.get_or_create(track=track, artist=artist)
         TrackAlbum.objects.get_or_create(track=track, album=album)
 
-        StreamingHistory.objects.get_or_create(
+        ListeningHistory.objects.get_or_create(
             user=user,
             track=track,
             played_at=played_at,

@@ -3,8 +3,8 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from conftest import streaming_history_factory
-from spotify_stats.analytics.models import StreamingHistory
+from conftest import listening_history_factory
+from spotify_stats.analytics.models import ListeningHistory
 from spotify_stats.analytics.service import StreamingAnalyticsService
 
 
@@ -108,29 +108,29 @@ class TestStreamingAnalyticsService:
             track1,
             track2,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
             artist1,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date,
                 ms_played=180_000,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=120_000,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track2,
                 played_at=base_date + timedelta(hours=2),
                 ms_played=240_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_artists(base_queryset)
 
             assert result.count() == 1
@@ -147,43 +147,43 @@ class TestStreamingAnalyticsService:
             artist1,
             artist2,
             user1,
-            streaming_history_factory,
+            listening_history_factory,
             base_date,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date,
                 ms_played=180_000,
             )
 
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track2,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=120_000,
             )
 
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track3,
                 played_at=base_date + timedelta(hours=2),
                 ms_played=150_000,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track3,
                 played_at=base_date + timedelta(hours=3),
                 ms_played=140_000,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track3,
                 played_at=base_date + timedelta(hours=4),
                 ms_played=130_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_artists(base_queryset)
 
             assert result.count() == 2
@@ -201,11 +201,11 @@ class TestStreamingAnalyticsService:
             user1,
             user2,
             track1,
-            streaming_history_factory,
+            listening_history_factory,
             base_date,
             artist1,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date,
@@ -213,14 +213,14 @@ class TestStreamingAnalyticsService:
             )
 
             for i in range(5):
-                streaming_history_factory(
+                listening_history_factory(
                     user=user2,
                     track=track1,
                     played_at=base_date + timedelta(hours=i),
                     ms_played=200_000,
                 )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_artists(base_queryset)
 
             artist1_ = result.get(pk=artist1.pk)
@@ -232,26 +232,26 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
             artist1,
         ):
             old_date = base_date.replace(year=2023)
             for i in range(5):
-                streaming_history_factory(
+                listening_history_factory(
                     user=user1,
                     track=track1,
                     played_at=old_date + timedelta(hours=i),
                     ms_played=200_000,
                 )
 
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date,
                 ms_played=100_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1).filter(
+            base_queryset = ListeningHistory.objects.for_user(user1).filter(
                 played_at__year=2024
             )
             result = StreamingAnalyticsService.top_artists(base_queryset)
@@ -261,26 +261,26 @@ class TestStreamingAnalyticsService:
             assert artist1_.total_ms_played == 100_000
 
         def test_empty_queryset(self):
-            empty_queryset = StreamingHistory.objects.none()
+            empty_queryset = ListeningHistory.objects.none()
             result = StreamingAnalyticsService.top_artists(empty_queryset)
             assert result.count() == 0
 
-        def test_artists_without_streaming_history(
+        def test_artists_without_listening_history(
             self,
             user1,
             track1,
-            streaming_history_factory,
+            listening_history_factory,
             base_date,
             artist1,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date,
                 ms_played=180_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_artists(base_queryset)
 
             assert result.count() == 1
@@ -291,23 +291,23 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
             artist1,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date,
                 ms_played=0,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=180_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_artists(base_queryset)
 
             artist1_ = result.get(pk=artist1.pk)
@@ -321,23 +321,23 @@ class TestStreamingAnalyticsService:
             user1,
             album1,
             track1,
-            streaming_history_factory,
+            listening_history_factory,
             base_date,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=120_000,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(hours=2),
                 ms_played=240_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_albums(base_queryset)
 
             assert result.count() == 1
@@ -348,7 +348,7 @@ class TestStreamingAnalyticsService:
 
         def test_multiple_albums_aggregation(
             self,
-            streaming_history_factory,
+            listening_history_factory,
             user1,
             track2,
             track3,
@@ -356,10 +356,10 @@ class TestStreamingAnalyticsService:
             album1,
             album2,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track2, played_at=base_date, ms_played=180_000
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track2,
                 played_at=base_date + timedelta(hours=1),
@@ -367,14 +367,14 @@ class TestStreamingAnalyticsService:
             )
 
             for i in range(3):
-                streaming_history_factory(
+                listening_history_factory(
                     user=user1,
                     track=track3,
                     played_at=base_date + timedelta(hours=i + 2),
                     ms_played=150_000,
                 )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_albums(base_queryset)
 
             assert result.count() == 2
@@ -393,10 +393,10 @@ class TestStreamingAnalyticsService:
             user2,
             album2,
             track3,
-            streaming_history_factory,
+            listening_history_factory,
             base_date,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track3,
                 played_at=base_date,
@@ -404,14 +404,14 @@ class TestStreamingAnalyticsService:
             )
 
             for i in range(3):
-                streaming_history_factory(
+                listening_history_factory(
                     user=user2,
                     track=track3,
                     played_at=base_date + timedelta(hours=i),
                     ms_played=200_000,
                 )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_albums(base_queryset)
 
             album = result.get(pk=album2.pk)
@@ -423,26 +423,26 @@ class TestStreamingAnalyticsService:
             user1,
             album2,
             track3,
-            streaming_history_factory,
+            listening_history_factory,
             base_date,
         ):
             old_date = base_date.replace(year=2023)
             for i in range(3):
-                streaming_history_factory(
+                listening_history_factory(
                     user=user1,
                     track=track3,
                     played_at=old_date + timedelta(hours=i),
                     ms_played=200_000,
                 )
 
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track3,
                 played_at=base_date,
                 ms_played=100_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1).filter(
+            base_queryset = ListeningHistory.objects.for_user(user1).filter(
                 played_at__year=2024
             )
             result = StreamingAnalyticsService.top_albums(base_queryset)
@@ -452,27 +452,27 @@ class TestStreamingAnalyticsService:
             assert album.total_ms_played == 100_000
 
         def test_empty_queryset(self):
-            empty_queryset = StreamingHistory.objects.none()
+            empty_queryset = ListeningHistory.objects.none()
             result = StreamingAnalyticsService.top_albums(empty_queryset)
             assert result.count() == 0
 
-        def test_album_without_streaming_history_excluded(
+        def test_album_without_listening_history(
             self,
             user1,
             album2,
             album1,
             track3,
-            streaming_history_factory,
+            listening_history_factory,
             base_date,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track3,
                 played_at=base_date,
                 ms_played=180_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_albums(base_queryset)
 
             assert result.count() == 1
@@ -485,19 +485,19 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=180_000
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=120_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_tracks(base_queryset)
 
             assert result.count() == 1
@@ -512,25 +512,25 @@ class TestStreamingAnalyticsService:
             track1,
             track2,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=200_000
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track2,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=150_000,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track2,
                 played_at=base_date + timedelta(hours=2),
                 ms_played=100_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_tracks(base_queryset)
 
             assert result.count() == 2
@@ -549,21 +549,21 @@ class TestStreamingAnalyticsService:
             user2,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=200_000
             )
 
             for i in range(3):
-                streaming_history_factory(
+                listening_history_factory(
                     user=user2,
                     track=track1,
                     played_at=base_date + timedelta(hours=i),
                     ms_played=300_000,
                 )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_tracks(base_queryset)
 
             track1_ = result.get(pk=track1.pk)
@@ -575,25 +575,25 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
             old_date = base_date.replace(year=2023)
             for i in range(2):
-                streaming_history_factory(
+                listening_history_factory(
                     user=user1,
                     track=track1,
                     played_at=old_date + timedelta(hours=i),
                     ms_played=100_000,
                 )
 
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date,
                 ms_played=150_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1).filter(
+            base_queryset = ListeningHistory.objects.for_user(user1).filter(
                 played_at__year=2024
             )
             result = StreamingAnalyticsService.top_tracks(base_queryset)
@@ -603,23 +603,23 @@ class TestStreamingAnalyticsService:
             assert track1_.total_ms_played == 150_000
 
         def test_empty_queryset(self):
-            empty_queryset = StreamingHistory.objects.none()
+            empty_queryset = ListeningHistory.objects.none()
             result = StreamingAnalyticsService.top_tracks(empty_queryset)
             assert result.count() == 0
 
-        def test_tracks_without_streaming_history_excluded(
+        def test_tracks_without_listening_history(
             self,
             user1,
             track1,
             track2,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=200_000
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_tracks(base_queryset)
 
             assert result.count() == 1
@@ -630,19 +630,19 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=0
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=180_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.top_tracks(base_queryset)
 
             track1_ = result.get(pk=track1.pk)
@@ -660,29 +660,29 @@ class TestStreamingAnalyticsService:
             artist2,
             album1,
             album2,
-            streaming_history_factory,
+            listening_history_factory,
             base_date,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date,
                 ms_played=180_000,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=120_000,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track3,
                 played_at=base_date + timedelta(hours=2),
                 ms_played=240_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.listening_stats(base_queryset)
 
             assert result["total_ms_played"] == 540_000
@@ -699,7 +699,7 @@ class TestStreamingAnalyticsService:
             assert result["last_play"] == base_date + timedelta(hours=2)
 
         def test_empty_queryset(self):
-            empty_queryset = StreamingHistory.objects.none()
+            empty_queryset = ListeningHistory.objects.none()
             result = StreamingAnalyticsService.listening_stats(empty_queryset)
 
             assert result["total_ms_played"] == 0
@@ -720,22 +720,22 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date,
                 ms_played=0,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(minutes=10),
                 ms_played=0,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.listening_stats(base_queryset)
 
             assert result["total_ms_played"] == 0
@@ -752,22 +752,22 @@ class TestStreamingAnalyticsService:
             track1,
             track2,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date,
                 ms_played=100_000,
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user2,
                 track=track2,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=500_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = StreamingAnalyticsService.listening_stats(base_queryset)
 
             assert result["total_ms_played"] == 100_000
@@ -781,19 +781,19 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=1_000_000
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=500_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = list(StreamingAnalyticsService.yearly_activity(base_queryset))
 
             assert len(result) == 1
@@ -810,19 +810,19 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
 
             old_date = base_date.replace(year=2023, month=6, day=1)
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=old_date, ms_played=100_000
             )
 
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=200_000
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = list(StreamingAnalyticsService.yearly_activity(base_queryset))
 
             assert len(result) == 2
@@ -842,16 +842,16 @@ class TestStreamingAnalyticsService:
             user2,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=100_000
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user2, track=track1, played_at=base_date, ms_played=500_000
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = list(StreamingAnalyticsService.yearly_activity(base_queryset))
 
             assert len(result) == 1
@@ -860,7 +860,7 @@ class TestStreamingAnalyticsService:
             assert data["tracks_played"] == 1
 
         def test_empty_queryset(self):
-            empty_queryset = StreamingHistory.objects.none()
+            empty_queryset = ListeningHistory.objects.none()
             result = list(StreamingAnalyticsService.yearly_activity(empty_queryset))
             assert result == []
 
@@ -871,19 +871,19 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=1_000_000
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=500_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = list(StreamingAnalyticsService.monthly_activity(base_queryset))
 
             assert len(result) == 1
@@ -900,19 +900,19 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
 
             old_date = base_date.replace(year=2023, month=11, day=1)
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=old_date, ms_played=100_000
             )
 
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=200_000
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = list(StreamingAnalyticsService.monthly_activity(base_queryset))
 
             assert len(result) == 2
@@ -932,16 +932,16 @@ class TestStreamingAnalyticsService:
             user2,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=100_000
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user2, track=track1, played_at=base_date, ms_played=500_000
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = list(StreamingAnalyticsService.monthly_activity(base_queryset))
 
             assert len(result) == 1
@@ -950,7 +950,7 @@ class TestStreamingAnalyticsService:
             assert data["tracks_played"] == 1
 
         def test_empty_queryset(self):
-            empty_queryset = StreamingHistory.objects.none()
+            empty_queryset = ListeningHistory.objects.none()
             result = list(StreamingAnalyticsService.monthly_activity(empty_queryset))
             assert result == []
 
@@ -961,19 +961,19 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=1_000_000
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1,
                 track=track1,
                 played_at=base_date + timedelta(hours=1),
                 ms_played=500_000,
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = list(StreamingAnalyticsService.daily_activity(base_queryset))
 
             assert len(result) == 1
@@ -990,19 +990,19 @@ class TestStreamingAnalyticsService:
             user1,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
 
             old_date = base_date.replace(year=2023, month=12, day=27)
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=old_date, ms_played=100_000
             )
 
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=200_000
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = list(StreamingAnalyticsService.daily_activity(base_queryset))
 
             assert len(result) == 2
@@ -1022,16 +1022,16 @@ class TestStreamingAnalyticsService:
             user2,
             track1,
             base_date,
-            streaming_history_factory,
+            listening_history_factory,
         ):
-            streaming_history_factory(
+            listening_history_factory(
                 user=user1, track=track1, played_at=base_date, ms_played=100_000
             )
-            streaming_history_factory(
+            listening_history_factory(
                 user=user2, track=track1, played_at=base_date, ms_played=500_000
             )
 
-            base_queryset = StreamingHistory.objects.for_user(user1)
+            base_queryset = ListeningHistory.objects.for_user(user1)
             result = list(StreamingAnalyticsService.daily_activity(base_queryset))
 
             assert len(result) == 1
@@ -1040,6 +1040,6 @@ class TestStreamingAnalyticsService:
             assert data["tracks_played"] == 1
 
         def test_empty_queryset(self):
-            empty_queryset = StreamingHistory.objects.none()
+            empty_queryset = ListeningHistory.objects.none()
             result = list(StreamingAnalyticsService.daily_activity(empty_queryset))
             assert result == []

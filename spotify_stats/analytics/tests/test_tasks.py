@@ -11,7 +11,7 @@ from spotify_stats.analytics.tasks import (
     process_single_record,
     safe_strip,
 )
-from spotify_stats.analytics.models import StreamingHistory, FileUploadJob
+from spotify_stats.analytics.models import ListeningHistory, FileUploadJob
 from spotify_stats.catalog.models import Artist, Album, Track, AlbumArtist
 
 
@@ -109,7 +109,7 @@ class TestProcessSingleJob:
 
         process_single_job(job)
 
-        assert StreamingHistory.objects.count() == 0
+        assert ListeningHistory.objects.count() == 0
 
     def test_successfully_processes_if_valid_file(
         self, file_upload_job_factory, valid_record
@@ -123,7 +123,7 @@ class TestProcessSingleJob:
 
         process_single_job(job)
 
-        assert StreamingHistory.objects.count() == 1
+        assert ListeningHistory.objects.count() == 1
 
 
 @pytest.mark.django_db
@@ -170,7 +170,7 @@ class TestProcessSingleRecord:
         if is_required:
             assert len(connection.queries) == 0
         else:
-            assert StreamingHistory.objects.count() == 1
+            assert ListeningHistory.objects.count() == 1
 
     @pytest.mark.parametrize(
         "ts, is_valid",
@@ -191,7 +191,7 @@ class TestProcessSingleRecord:
         assert result == is_valid
 
         if is_valid:
-            assert StreamingHistory.objects.count() == 1
+            assert ListeningHistory.objects.count() == 1
         else:
             assert len(connection.queries) == 0
 
@@ -219,7 +219,7 @@ class TestProcessSingleRecord:
         assert result == is_valid
 
         if is_valid:
-            assert StreamingHistory.objects.count() == 1
+            assert ListeningHistory.objects.count() == 1
         else:
             assert len(connection.queries) == 0
 
@@ -229,7 +229,7 @@ class TestProcessSingleRecord:
         assert Artist.objects.count() == 1
         assert Album.objects.count() == 1
         assert Track.objects.count() == 1
-        assert StreamingHistory.objects.count() == 1
+        assert ListeningHistory.objects.count() == 1
 
         artist = Artist.objects.first()
         assert artist.name == valid_record["master_metadata_album_artist_name"]
@@ -246,7 +246,7 @@ class TestProcessSingleRecord:
         assert track.name == valid_record["master_metadata_track_name"]
         assert track.spotify_uri == valid_record["spotify_track_uri"]
 
-        history_obj = StreamingHistory.objects.first()
+        history_obj = ListeningHistory.objects.first()
         assert history_obj.user == user
         assert history_obj.track == track
         assert history_obj.played_at == parse_datetime(valid_record["ts"])
@@ -256,7 +256,7 @@ class TestProcessSingleRecord:
         process_single_record(valid_record, user)
         process_single_record(valid_record, user)
 
-        assert StreamingHistory.objects.count() == 1
+        assert ListeningHistory.objects.count() == 1
 
 
 @pytest.mark.django_db
