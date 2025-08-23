@@ -10,7 +10,6 @@ class ListeningHistoryQuerySet(models.QuerySet):
         return self.filter(user=user)
 
 
-# TODO: rename to ListeningHistory
 class ListeningHistory(UUIDModel, TimestampedModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     track = models.ForeignKey(

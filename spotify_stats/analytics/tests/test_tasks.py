@@ -151,8 +151,8 @@ class TestProcessSingleRecord:
             ("ts", True),
             ("ms_played", True),
             ("master_metadata_track_name", True),
-            ("master_metadata_album_artist_name", True),
-            ("master_metadata_album_album_name", True),
+            ("master_metadata_album_artist_name", False),
+            ("master_metadata_album_album_name", False),
             ("spotify_track_uri", True),
             ("platform", False),
         ],
@@ -225,22 +225,11 @@ class TestProcessSingleRecord:
     def test_success_case(self, user, valid_record):
         process_single_record(valid_record, user)
 
-        assert Artist.objects.count() == 1
-        assert Album.objects.count() == 1
         assert Track.objects.count() == 1
         assert ListeningHistory.objects.count() == 1
 
-        artist = Artist.objects.first()
-        assert artist.name == valid_record["master_metadata_album_artist_name"]
-
-        album = Album.objects.first()
-        assert album.name == valid_record["master_metadata_album_album_name"]
-
-        assert AlbumArtist.objects.filter(album=album).count() == 1
-
         track = Track.objects.first()
-        assert track.artists.contains(artist)
-        assert track.album_id == album.pk
+        assert track.album_id is None
         assert track.name == valid_record["master_metadata_track_name"]
         assert track.spotify_id in valid_record["spotify_track_uri"]
 

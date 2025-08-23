@@ -8,13 +8,7 @@ from django.utils.dateparse import parse_datetime
 from django.contrib.auth import get_user_model
 
 from spotify_stats.analytics.models import FileUploadJob, ListeningHistory
-from spotify_stats.catalog.models import (
-    Track,
-    Artist,
-    Album,
-    TrackArtist,
-    AlbumArtist,
-)
+from spotify_stats.catalog.models import Track
 
 log = logging.getLogger(__name__)
 
@@ -74,8 +68,6 @@ def process_single_record(record: dict[str, Any], user: User) -> bool:
     ts = safe_strip(record.get("ts"))
     ms_played = record.get("ms_played")
     track_name = safe_strip(record.get("master_metadata_track_name"))
-    artist_name = safe_strip(record.get("master_metadata_album_artist_name"))
-    album_name = safe_strip(record.get("master_metadata_album_album_name"))
     spotify_track_uri = safe_strip(record.get("spotify_track_uri"))
 
     missing_fields = []
@@ -85,10 +77,6 @@ def process_single_record(record: dict[str, Any], user: User) -> bool:
         missing_fields.append("ms_played")
     if not track_name:
         missing_fields.append("track_name")
-    if not artist_name:
-        missing_fields.append("artist_name")
-    if not album_name:
-        missing_fields.append("album_name")
     if not spotify_track_uri:
         missing_fields.append("spotify_track_uri")
 
@@ -114,20 +102,13 @@ def process_single_record(record: dict[str, Any], user: User) -> bool:
         log.debug("Invalid ms_played '%s': %s" % (ms_played, e))
         return False
 
+    spotify_id = spotify_track_uri.split(":")[-1]
+
     try:
-        artist, _ = Artist.objects.get_or_create(name=artist_name)
-
-        album, _ = Album.objects.get_or_create(name=album_name)
-        AlbumArtist.objects.get_or_create(album=album, artist=artist)
-
-        spotify_id = spotify_track_uri.split(":")[-1]
-
         track, _ = Track.objects.get_or_create(
             spotify_id=spotify_id,
-            defaults={"name": track_name, "album": album},
+            defaults={"name": track_name},
         )
-
-        TrackArtist.objects.get_or_create(track=track, artist=artist)
 
         ListeningHistory.objects.get_or_create(
             user=user,
@@ -137,10 +118,7 @@ def process_single_record(record: dict[str, Any], user: User) -> bool:
         )
     except Exception as e:
         log.error("Database error processing record: %s" % e)
-        log.error(
-            "Record data: track='%s', artist='%s', uri='%s'"
-            % (track_name, artist_name, spotify_track_uri)
-        )
+        log.error("Record data: track='%s', spotify_id='%s'" % (track_name, spotify_id))
 
     return True
 

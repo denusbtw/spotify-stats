@@ -15,7 +15,9 @@ class Album(UUIDModel, TimestampedModel):
 
 
 class Track(UUIDModel, TimestampedModel):
-    album = models.ForeignKey("Album", on_delete=models.CASCADE, related_name="tracks")
+    album = models.ForeignKey(
+        "Album", on_delete=models.SET_NULL, related_name="tracks", null=True
+    )
     name = models.CharField(max_length=255)
     spotify_id = models.CharField(max_length=62, unique=True)
     artists = models.ManyToManyField(
