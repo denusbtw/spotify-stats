@@ -167,3 +167,25 @@ CELERY_RESULT_BACKEND_ALWAYS_RETRY = True
 CELERY_RESULT_BACKEND_MAX_RETRIES = 10
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_TASK_EAGER_PROPAGATES = False
+
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": os.environ["CLOUDFLARE_R2_BUCKET"],
+            "access_key": os.environ["CLOUDFLARE_R2_ACCESS_KEY"],
+            "secret_key": os.environ["CLOUDFLARE_R2_SECRET_KEY"],
+            "endpoint_url": os.environ["CLOUDFLARE_R2_BUCKET_ENDPOINT"],
+            "signature_version": "s3v4",
+            "location": "media",
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+
+SPOTIFY_CLIENT_ID = os.environ["SPOTIFY_CLIENT_ID"]
+SPOTIFY_CLIENT_SECRET = os.environ["SPOTIFY_CLIENT_SECRET"]

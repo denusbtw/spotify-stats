@@ -5,10 +5,14 @@ from spotify_stats.core.models import TimestampedModel, UUIDModel
 
 class Artist(UUIDModel, TimestampedModel):
     name = models.CharField(max_length=255)
+    cover_url = models.URLField()
+    spotify_id = models.CharField(max_length=62, unique=True)
 
 
 class Album(UUIDModel, TimestampedModel):
     name = models.CharField(max_length=255)
+    cover_url = models.URLField()
+    spotify_id = models.CharField(max_length=62, unique=True)
     artists = models.ManyToManyField(
         Artist, through="AlbumArtist", related_name="albums"
     )

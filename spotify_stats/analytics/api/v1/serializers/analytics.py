@@ -7,14 +7,14 @@ class ArtistNestedSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Artist
-        fields = ("id", "name")
+        fields = ("id", "name", "cover_url")
 
 
 class AlbumNestedSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Album
-        fields = ("id", "name")
+        fields = ("id", "name", "cover_url")
 
 
 class BaseTopSerializer(serializers.Serializer):

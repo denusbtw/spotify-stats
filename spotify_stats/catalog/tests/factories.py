@@ -14,6 +14,7 @@ fake = Faker()
 
 class ArtistFactory(factory.django.DjangoModelFactory):
     name = factory.LazyFunction(lambda: fake.user_name())
+    cover_url = factory.LazyFunction(lambda: fake.image_url())
 
     class Meta:
         model = Artist
@@ -21,6 +22,7 @@ class ArtistFactory(factory.django.DjangoModelFactory):
 
 class AlbumFactory(factory.django.DjangoModelFactory):
     name = factory.LazyFunction(lambda: fake.word())
+    cover_url = factory.LazyFunction(lambda: fake.image_url())
 
     class Meta:
         model = Album
