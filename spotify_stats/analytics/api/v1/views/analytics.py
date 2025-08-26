@@ -18,7 +18,7 @@ from ..filters import (
 )
 from ..serializers import TopArtistsSerializer, TopAlbumsSerializer, TopTracksSerializer
 from spotify_stats.analytics.models import ListeningHistory
-from spotify_stats.analytics.service import StreamingAnalyticsService
+from spotify_stats.analytics.services.analytics import StreamingAnalyticsService
 
 User = get_user_model()
 

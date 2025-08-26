@@ -3,9 +3,8 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from conftest import listening_history_factory
 from spotify_stats.analytics.models import ListeningHistory
-from spotify_stats.analytics.service import StreamingAnalyticsService
+from spotify_stats.analytics.services import StreamingAnalyticsService
 
 
 @pytest.fixture

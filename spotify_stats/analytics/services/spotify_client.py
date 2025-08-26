@@ -52,7 +52,7 @@ class SpotifyClient:
         response = requests.get(url, headers=headers)
         return response.json()
 
-    def get_albums(self, spotify_ids: list):
+    def get_several_albums(self, spotify_ids: list):
         headers = self._get_headers()
         params = {
             "ids": ",".join([id_ for id_ in spotify_ids]),
@@ -69,7 +69,7 @@ class SpotifyClient:
         response = requests.get(url, headers=headers)
         return response.json()
 
-    def get_artists(self, spotify_ids: list):
+    def get_several_artists(self, spotify_ids: list):
         headers = self._get_headers()
         params = {
             "ids": ",".join([id_ for id_ in spotify_ids]),
@@ -86,10 +86,10 @@ class SpotifyClient:
         response = requests.get(url, headers=headers)
         return response.json()
 
-    def get_tracks(self, spotify_ids: list):
+    def get_several_tracks(self, spotify_ids: list):
         headers = self._get_headers()
         params = {
-            "ids": ",".join([id_ for id_ in spotify_ids]),
+            "ids": ",".join([str(id_) for id_ in spotify_ids]),
         }
         url = f"{self.base_url}/v1/tracks"
 

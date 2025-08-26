@@ -15,6 +15,7 @@ fake = Faker()
 class ArtistFactory(factory.django.DjangoModelFactory):
     name = factory.LazyFunction(lambda: fake.user_name())
     cover_url = factory.LazyFunction(lambda: fake.image_url())
+    spotify_id = factory.Sequence(lambda n: str(n + 1))
 
     class Meta:
         model = Artist
@@ -23,6 +24,7 @@ class ArtistFactory(factory.django.DjangoModelFactory):
 class AlbumFactory(factory.django.DjangoModelFactory):
     name = factory.LazyFunction(lambda: fake.word())
     cover_url = factory.LazyFunction(lambda: fake.image_url())
+    spotify_id = factory.Sequence(lambda n: str(n + 1))
 
     class Meta:
         model = Album

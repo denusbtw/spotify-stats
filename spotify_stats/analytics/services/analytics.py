@@ -1,6 +1,6 @@
 from typing import Any
 
-from django.db.models import Sum, Count, FloatField, Avg, Min, Max, QuerySet
+from django.db.models import QuerySet, Sum, Count, FloatField, Avg, Min, Max
 from django.db.models.functions import (
     Coalesce,
     Round,
@@ -20,7 +20,7 @@ class StreamingAnalyticsService:
     def top_artists(base_queryset: QuerySet[ListeningHistory]) -> QuerySet[Artist]:
         return Artist.objects.filter(tracks__history__in=base_queryset).annotate(
             total_ms_played=Sum("tracks__history__ms_played"),
-            play_count=Count("tracks__history__id"),
+            play_count=Count("tracks__history__id", distinct=True),
         )
 
     @staticmethod
@@ -30,7 +30,7 @@ class StreamingAnalyticsService:
             .prefetch_related("artists")
             .annotate(
                 total_ms_played=Sum("tracks__history__ms_played"),
-                play_count=Count("tracks__history__id"),
+                play_count=Count("tracks__history__id", distinct=True),
             )
         )
 
@@ -42,7 +42,7 @@ class StreamingAnalyticsService:
             .prefetch_related("artists")
             .annotate(
                 total_ms_played=Sum("history__ms_played"),
-                play_count=Count("history__id"),
+                play_count=Count("history__id", distinct=True),
             )
         )
 
@@ -56,11 +56,14 @@ class StreamingAnalyticsService:
                 output_field=FloatField(),
             ),
             total_hours_played=Coalesce(
-                Round(Cast(Sum("ms_played"), FloatField()) / 1000 / 60 / 60, 2),
+                Round(
+                    Cast(Sum("ms_played"), FloatField()) / 1000 / 60 / 60,
+                    2,
+                ),
                 0,
                 output_field=FloatField(),
             ),
-            total_tracks_played=Count("id"),
+            total_tracks_played=Count("id", distinct=True),
             unique_tracks=Count("track_id", distinct=True),
             unique_artists=Count("track__artists__id", distinct=True),
             unique_albums=Count("track__album_id", distinct=True),
@@ -71,7 +74,10 @@ class StreamingAnalyticsService:
                 output_field=FloatField(),
             ),
             average_hours_played=Coalesce(
-                Round(Cast(Avg("ms_played"), FloatField()) / 1000 / 60 / 60, 2),
+                Round(
+                    Cast(Avg("ms_played"), FloatField()) / 1000 / 60 / 60,
+                    2,
+                ),
                 0,
                 output_field=FloatField(),
             ),

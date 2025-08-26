@@ -30,7 +30,14 @@ class TopArtistsSerializer(BaseTopSerializer, serializers.ModelSerializer):
 
     class Meta:
         model = Artist
-        fields = ("id", "name", "total_ms_played", "total_mins_played", "play_count")
+        fields = (
+            "id",
+            "name",
+            "total_ms_played",
+            "total_mins_played",
+            "play_count",
+            "cover_url",
+        )
         read_only_fields = fields
 
 

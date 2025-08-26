@@ -20,6 +20,13 @@ class ListeningHistory(UUIDModel, TimestampedModel):
 
     objects = ListeningHistoryQuerySet.as_manager()
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "played_at"], name="unique_user_played_at"
+            )
+        ]
+
     def __str__(self):
         return f"{self.user.username} - {self.track.name}: {self.played_at.strftime('%Y/%m/%d, %H:%M:%S')}"
 
