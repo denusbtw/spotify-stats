@@ -5,7 +5,7 @@ import uuid
 from celery import shared_task
 from django.contrib.auth import get_user_model
 
-from spotify_stats.analytics.services import FileProcessingService, SpotifyProcessor
+from spotify_stats.analytics.services import FileProcessingService, SpotifyAPIProcessor
 from spotify_stats.catalog.models import Track
 
 log = logging.getLogger()
@@ -24,5 +24,5 @@ def process_file_upload_jobs(job_ids: list[uuid.UUID]) -> None:
 
 @shared_task(soft_time_limit=300, time_limit=360, ignore_result=True)
 def enrich_spotify_metadata(track_ids: list):
-    service = SpotifyProcessor()
+    service = SpotifyAPIProcessor()
     asyncio.run(service.enrich_spotify_metadata(track_ids))

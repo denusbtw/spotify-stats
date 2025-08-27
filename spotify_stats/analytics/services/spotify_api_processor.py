@@ -7,7 +7,8 @@ from .spotify_api_parser import SpotifyAPIParser
 from spotify_stats.catalog.models import Artist, Album, AlbumArtist, Track, TrackArtist
 
 
-class SpotifyProcessor:
+# TODO: add logging
+class SpotifyAPIProcessor:
 
     def __init__(self):
         self.spotify_client = AsyncSpotifyClient()
@@ -22,6 +23,7 @@ class SpotifyProcessor:
         await asyncio.gather(*tasks)
 
     async def process_batch(self, batch):
+        # TODO: add retry mechanism
         response = await self.spotify_client.get_several_tracks(batch)
         parsed_response = self.parser.parse_several_tracks_response_data(response)
 
@@ -40,14 +42,8 @@ class SpotifyProcessor:
         unique_track_ids = {r["track_id"] for r in data}
         unique_album_ids = {r["album_id"] for r in data}
 
-        tracks_map = {
-            track.spotify_id: track
-            for track in Track.objects.filter(spotify_id__in=unique_track_ids)
-        }
-        albums_map = {
-            album.spotify_id: album
-            for album in Album.objects.filter(spotify_id__in=unique_album_ids)
-        }
+        tracks_map = self.get_objects_map(Track, unique_track_ids)
+        albums_map = self.get_objects_map(Album, unique_album_ids)
 
         tracks_to_update = []
         for r in data:
@@ -84,15 +80,8 @@ class SpotifyProcessor:
         unique_album_ids = {r["album_id"] for r in data}
         unique_artist_ids = {r["artist_id"] for r in data}
 
-        albums_map = {
-            album.spotify_id: album
-            for album in Album.objects.filter(spotify_id__in=unique_album_ids)
-        }
-
-        artists_map = {
-            artist.spotify_id: artist
-            for artist in Artist.objects.filter(spotify_id__in=unique_artist_ids)
-        }
+        albums_map = self.get_objects_map(Album, unique_album_ids)
+        artists_map = self.get_objects_map(Artist, unique_artist_ids)
 
         relations_to_create = [
             AlbumArtist(
@@ -108,15 +97,8 @@ class SpotifyProcessor:
         unique_track_ids = {r["track_id"] for r in data}
         unique_artist_ids = {r["artist_id"] for r in data}
 
-        tracks_map = {
-            track.spotify_id: track
-            for track in Track.objects.filter(spotify_id__in=unique_track_ids)
-        }
-
-        artists_map = {
-            artist.spotify_id: artist
-            for artist in Artist.objects.filter(spotify_id__in=unique_artist_ids)
-        }
+        tracks_map = self.get_objects_map(Track, unique_track_ids)
+        artists_map = self.get_objects_map(Artist, unique_artist_ids)
 
         relations_to_create = [
             TrackArtist(
@@ -131,3 +113,6 @@ class SpotifyProcessor:
     def split_into_batches(self, items, batch_size):
         for i in range(0, len(items), batch_size):
             yield items[i : i + batch_size]
+
+    def get_objects_map(self, model, ids):
+        return {obj.spotify_id: obj for obj in model.objects.filter(spotify_id__in=ids)}
