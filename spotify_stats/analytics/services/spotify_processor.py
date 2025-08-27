@@ -1,34 +1,37 @@
-from spotify_stats.analytics.services.spotify_api_parser import SpotifyAPIParser
-from spotify_stats.analytics.services.spotify_client import SpotifyClient
+import asyncio
+
+from asgiref.sync import sync_to_async
+
+from .spotify_client import AsyncSpotifyClient
+from .spotify_api_parser import SpotifyAPIParser
 from spotify_stats.catalog.models import Artist, Album, AlbumArtist, Track, TrackArtist
 
 
 class SpotifyProcessor:
 
     def __init__(self):
-        self.spotify_client = SpotifyClient()
+        self.spotify_client = AsyncSpotifyClient()
         self.parser = SpotifyAPIParser()
         self.batch_size = 50
 
-    def enrich_spotify_metadata(self, track_ids: list):
-        for batch in self.split_into_batches(track_ids):
-            self.process_batch(batch)
+    async def enrich_spotify_metadata(self, track_ids: list):
+        tasks = []
+        for batch in self.split_into_batches(track_ids, self.batch_size):
+            tasks.append(self.process_batch(batch))
 
-    def process_batch(self, batch):
-        existing_artist_ids = set(Artist.objects.values_list("spotify_id", flat=True))
-        existing_album_ids = set(Album.objects.values_list("spotify_id", flat=True))
+        await asyncio.gather(*tasks)
 
-        response = self.spotify_client.get_several_tracks(batch)
+    async def process_batch(self, batch):
+        response = await self.spotify_client.get_several_tracks(batch)
         parsed_response = self.parser.parse_several_tracks_response_data(response)
 
-        artists_to_create = parsed_response["artists_to_create"]
-        self.bulk_create_artists(artists_to_create, existing_artist_ids)
+        await sync_to_async(self.process_and_save_data)(parsed_response)
 
-        albums_to_create = parsed_response["albums_to_create"]
-        self.bulk_create_albums(albums_to_create, existing_album_ids)
+    def process_and_save_data(self, parsed_response):
+        self.bulk_create_artists(parsed_response["artists_to_create"])
+        self.bulk_create_albums(parsed_response["albums_to_create"])
 
-        tracks_to_update = parsed_response["tracks_to_update"]
-        self.bulk_update_tracks(tracks_to_update)
+        self.bulk_update_tracks(parsed_response["tracks_to_update"])
 
         self.bulk_create_albums_artists(parsed_response["album_artists_to_create"])
         self.bulk_create_track_artists(parsed_response["track_artists_to_create"])
@@ -56,19 +59,17 @@ class SpotifyProcessor:
 
         Track.objects.bulk_update(tracks_to_update, fields=["album"])
 
-    def bulk_create_artists(self, artists_data, existing_ids):
+    def bulk_create_artists(self, artists_data):
         artists_to_create = [
             Artist(
                 spotify_id=data["id"],
                 name=data["name"],
-                cover_url=data["cover_url"],
             )
             for data in artists_data
-            if data["id"] not in existing_ids
         ]
         Artist.objects.bulk_create(artists_to_create, ignore_conflicts=True)
 
-    def bulk_create_albums(self, albums_data, existing_ids):
+    def bulk_create_albums(self, albums_data):
         albums_to_create = [
             Album(
                 spotify_id=data["id"],
@@ -76,7 +77,6 @@ class SpotifyProcessor:
                 cover_url=data["cover_url"],
             )
             for data in albums_data
-            if data["id"] not in existing_ids
         ]
         Album.objects.bulk_create(albums_to_create, ignore_conflicts=True)
 
@@ -128,6 +128,6 @@ class SpotifyProcessor:
 
         TrackArtist.objects.bulk_create(relations_to_create, ignore_conflicts=True)
 
-    def split_into_batches(self, items):
-        for i in range(0, len(items), self.batch_size):
-            yield items[i : i + self.batch_size]
+    def split_into_batches(self, items, batch_size):
+        for i in range(0, len(items), batch_size):
+            yield items[i : i + batch_size]

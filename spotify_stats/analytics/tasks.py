@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 
@@ -21,7 +22,7 @@ def process_file_upload_jobs(job_ids: list[uuid.UUID]) -> None:
     enrich_spotify_metadata.delay(track_ids)
 
 
-@shared_task(soft_time_limit=300, time_limit=360)
+@shared_task(soft_time_limit=300, time_limit=360, ignore_result=True)
 def enrich_spotify_metadata(track_ids: list):
     service = SpotifyProcessor()
-    service.enrich_spotify_metadata(track_ids)
+    asyncio.run(service.enrich_spotify_metadata(track_ids))

@@ -1,6 +1,7 @@
 import logging
 import time
 
+import aiohttp
 import requests
 from django.conf import settings
 from django.core.cache import cache
@@ -9,8 +10,7 @@ from django.core.cache import cache
 log = logging.getLogger()
 
 
-class SpotifyClient:
-
+class BaseSpotifyClient:
     def __init__(self):
         self.base_url = "https://api.spotify.com"
         self.client_id = settings.SPOTIFY_CLIENT_ID
@@ -44,6 +44,14 @@ class SpotifyClient:
         self.token_expires_at = time.time() + expires_in
 
         return self.token
+
+    def _get_headers(self):
+        token = self.get_access_token()
+        headers = {"Authorization": f"Bearer {token}"}
+        return headers
+
+
+class SyncSpotifyClient(BaseSpotifyClient):
 
     def get_album(self, spotify_id):
         headers = self._get_headers()
@@ -96,7 +104,68 @@ class SpotifyClient:
         response = requests.get(url, headers=headers, params=params)
         return response.json()
 
-    def _get_headers(self):
-        token = self.get_access_token()
-        headers = {"Authorization": f"Bearer {token}"}
-        return headers
+
+class AsyncSpotifyClient(BaseSpotifyClient):
+
+    async def get_album(self, spotify_id):
+        headers = self._get_headers()
+        url = f"{self.base_url}/v1/albums/{spotify_id}"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                return await response.json()
+
+    async def get_several_albums(self, spotify_ids: list):
+        headers = self._get_headers()
+        params = {
+            "ids": ",".join([id_ for id_ in spotify_ids]),
+        }
+        url = f"{self.base_url}/v1/albums"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                response.raise_for_status()
+                return await response.json()
+
+    async def get_artist(self, spotify_id):
+        headers = self._get_headers()
+        url = f"{self.base_url}/v1/artists/{spotify_id}"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                return await response.json()
+
+    async def get_several_artists(self, spotify_ids: list):
+        headers = self._get_headers()
+        params = {
+            "ids": ",".join([str(id_) for id_ in spotify_ids]),
+        }
+        url = f"{self.base_url}/v1/artists"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                response.raise_for_status()
+                return await response.json()
+
+    async def get_several_tracks(self, spotify_ids: list):
+        headers = self._get_headers()
+        params = {
+            "ids": ",".join([str(id_) for id_ in spotify_ids]),
+        }
+        url = f"{self.base_url}/v1/tracks"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                response.raise_for_status()
+                return await response.json()
+
+    async def get_track(self, spotify_id):
+        headers = self._get_headers()
+        url = f"{self.base_url}/v1/tracks/{spotify_id}"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                return await response.json()
