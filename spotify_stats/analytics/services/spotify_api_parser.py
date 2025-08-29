@@ -1,6 +1,6 @@
 class SpotifyAPIParser:
 
-    def parse_several_artists_response_data(self, response_data):
+    def parse_several_artists_response_data(self, response_data: list[dict]) -> dict:
         artists_map = {}
 
         for artist_data in response_data.get("artists", []):
@@ -12,7 +12,7 @@ class SpotifyAPIParser:
             "artists": list(artists_map.values()),
         }
 
-    def parse_artist_response_data(self, artist_data):
+    def parse_artist_response_data(self, artist_data: dict) -> dict:
         artists_map = {}
 
         parsed_artist = self.parse_artist(artist_data)
@@ -23,7 +23,7 @@ class SpotifyAPIParser:
             "artists_map": artists_map,
         }
 
-    def parse_several_tracks_response_data(self, response_data):
+    def parse_several_tracks_response_data(self, response_data: list[dict]) -> dict:
         artists_map = {}
         albums_map = {}
         tracks_map = {}
@@ -49,7 +49,7 @@ class SpotifyAPIParser:
             "track_artists_to_create": track_artists_relations,
         }
 
-    def parse_track_response_data(self, track_data):
+    def parse_track_response_data(self, track_data: dict) -> dict:
         albums_map = {}
         artists_map = {}
         tracks_map = {}
@@ -98,14 +98,14 @@ class SpotifyAPIParser:
             "track_artists_relations": track_artists_relations,
         }
 
-    def parse_artist(self, data):
+    def parse_artist(self, data: dict) -> dict:
         return {
             "id": data.get("id"),
             "name": data.get("name"),
             "cover_url": self.extract_cover_url(data),
         }
 
-    def parse_album(self, data):
+    def parse_album(self, data: dict) -> dict:
         artists = self.parse_several_artists(data.get("artists", []))
 
         return {
@@ -115,7 +115,7 @@ class SpotifyAPIParser:
             "artists": artists,
         }
 
-    def parse_track(self, data):
+    def parse_track(self, data: dict) -> dict:
         album = self.parse_album(data.get("album", {}))
         artists = self.parse_several_artists(data.get("artists", []))
 
@@ -126,10 +126,10 @@ class SpotifyAPIParser:
             "artists": artists,
         }
 
-    def parse_several_artists(self, list_data):
+    def parse_several_artists(self, list_data: list[dict]) -> list[dict]:
         return [self.parse_artist(artist_data) for artist_data in list_data]
 
-    def extract_cover_url(self, data):
+    def extract_cover_url(self, data: dict) -> str:
         cover_url = ""
         if data.get("images"):
             cover_url = data["images"][0].get("url", "")

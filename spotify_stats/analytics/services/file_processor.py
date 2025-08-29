@@ -1,5 +1,7 @@
+import datetime
 import json
 import logging
+import uuid
 
 from django.utils.dateparse import parse_datetime
 
@@ -11,7 +13,7 @@ log = logging.getLogger()
 
 class FileProcessingService:
 
-    def process_file_upload_jobs(self, job_ids: list):
+    def process_file_upload_jobs(self, job_ids: list[uuid.UUID]) -> None:
         jobs = FileUploadJob.objects.filter(id__in=job_ids)
 
         for job in jobs:
@@ -37,7 +39,7 @@ class FileProcessingService:
             )
             job.save(update_fields=["status"])
 
-    def process_single_job(self, job):
+    def process_single_job(self, job: FileUploadJob) -> bool:
         streaming_records = self.validate_job_file_content(job)
         if streaming_records is None:
             return False
@@ -110,7 +112,7 @@ class FileProcessingService:
 
         return True
 
-    def validate_job_file_content(self, job):
+    def validate_job_file_content(self, job: FileUploadJob) -> list | None:
         try:
             streaming_records = json.load(job.file)
         except json.JSONDecodeError as e:
@@ -125,7 +127,7 @@ class FileProcessingService:
 
         return streaming_records
 
-    def validate_record(self, record):
+    def validate_record(self, record: dict) -> dict | None:
         if not isinstance(record, dict):
             # log.warning("Invalid record type: %s" % type(record))
             return None
@@ -160,7 +162,9 @@ class FileProcessingService:
 
         return record_
 
-    def get_missing_fields(self, track_name, spotify_track_uri, ts, ms_played):
+    def get_missing_fields(
+        self, track_name: str, spotify_track_uri: str, ts: str, ms_played: int
+    ) -> list:
         missing_fields = []
         if not ts:
             missing_fields.append("ts")
@@ -173,7 +177,7 @@ class FileProcessingService:
 
         return missing_fields
 
-    def validate_ms_played(self, ms_played):
+    def validate_ms_played(self, ms_played: int) -> int | None:
         try:
             ms_played = int(ms_played)
             if ms_played < 0:
@@ -185,7 +189,7 @@ class FileProcessingService:
 
         return ms_played
 
-    def validate_played_at(self, played_at):
+    def validate_played_at(self, played_at: str) -> datetime.datetime | None:
         try:
             played_at = parse_datetime(played_at)
             if played_at is None:
@@ -197,7 +201,7 @@ class FileProcessingService:
 
         return played_at
 
-    def split_into_batches(self, items, batch_size):
+    def split_into_batches(self, items: list, batch_size: int):
         for i in range(0, len(items), batch_size):
             yield items[i : i + batch_size]
 

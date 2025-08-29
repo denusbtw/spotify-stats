@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import uuid
+from typing import Iterable
 
 from asgiref.sync import sync_to_async
 
@@ -19,16 +21,16 @@ class SpotifyAPIProcessor:
         self.parser = SpotifyAPIParser()
         self.batch_size = 50
 
-    async def enrich_spotify_metadata(self, track_ids: list):
+    async def enrich_spotify_metadata(self, track_spotify_ids: list[uuid.UUID]) -> None:
         tasks = []
-        for batch in self.split_into_batches(track_ids, self.batch_size):
+        for batch in self.split_into_batches(track_spotify_ids, self.batch_size):
             tasks.append(self.process_tracks_batch(batch))
 
         await asyncio.gather(*tasks)
 
         await self.enrich_artists_covers()
 
-    async def enrich_artists_covers(self):
+    async def enrich_artists_covers(self) -> None:
         artists_without_cover_spotify_ids = await sync_to_async(
             lambda: list(
                 Artist.objects.filter(cover_url="").values_list("spotify_id", flat=True)
@@ -43,20 +45,20 @@ class SpotifyAPIProcessor:
 
         await asyncio.gather(*tasks)
 
-    async def process_tracks_batch(self, batch):
+    async def process_tracks_batch(self, batch: list[str]) -> None:
         # TODO: add retry mechanism
         response = await self.spotify_client.get_several_tracks(batch)
         parsed_response = self.parser.parse_several_tracks_response_data(response)
 
         await sync_to_async(self.process_and_save_tracks_data)(parsed_response)
 
-    async def process_artists_batch(self, batch):
+    async def process_artists_batch(self, batch: list[str]) -> None:
         response = await self.spotify_client.get_several_artists(batch)
         parsed_response = self.parser.parse_several_artists_response_data(response)
 
         await sync_to_async(self.bulk_update_artists)(parsed_response["artists"])
 
-    def process_and_save_tracks_data(self, parsed_response):
+    def process_and_save_tracks_data(self, parsed_response: dict) -> None:
         self.bulk_create_artists(parsed_response["artists_to_create"])
         self.bulk_create_albums(parsed_response["albums_to_create"])
 
@@ -65,7 +67,7 @@ class SpotifyAPIProcessor:
         self.bulk_create_albums_artists(parsed_response["album_artists_to_create"])
         self.bulk_create_track_artists(parsed_response["track_artists_to_create"])
 
-    def bulk_update_artists(self, data):
+    def bulk_update_artists(self, data: list[dict]) -> None:
         unique_artist_ids = {r["id"] for r in data}
 
         artists_map = self.get_objects_map(Artist, unique_artist_ids)
@@ -81,7 +83,7 @@ class SpotifyAPIProcessor:
             artists_to_update, batch_size=500, fields=["cover_url"]
         )
 
-    def bulk_update_tracks(self, data):
+    def bulk_update_tracks(self, data: list[dict]) -> None:
         unique_track_ids = {r["track_id"] for r in data}
         unique_album_ids = {r["album_id"] for r in data}
 
@@ -98,7 +100,7 @@ class SpotifyAPIProcessor:
 
         Track.objects.bulk_update(tracks_to_update, fields=["album"])
 
-    def bulk_create_artists(self, artists_data):
+    def bulk_create_artists(self, artists_data: list[dict]) -> None:
         artists_to_create = [
             Artist(
                 spotify_id=data["id"],
@@ -108,7 +110,7 @@ class SpotifyAPIProcessor:
         ]
         Artist.objects.bulk_create(artists_to_create, ignore_conflicts=True)
 
-    def bulk_create_albums(self, albums_data):
+    def bulk_create_albums(self, albums_data: list[dict]) -> None:
         albums_to_create = [
             Album(
                 spotify_id=data["id"],
@@ -119,7 +121,7 @@ class SpotifyAPIProcessor:
         ]
         Album.objects.bulk_create(albums_to_create, ignore_conflicts=True)
 
-    def bulk_create_albums_artists(self, data):
+    def bulk_create_albums_artists(self, data: list[dict]) -> None:
         unique_album_ids = {r["album_id"] for r in data}
         unique_artist_ids = {r["artist_id"] for r in data}
 
@@ -136,7 +138,7 @@ class SpotifyAPIProcessor:
 
         AlbumArtist.objects.bulk_create(relations_to_create, ignore_conflicts=True)
 
-    def bulk_create_track_artists(self, data):
+    def bulk_create_track_artists(self, data: list[dict]) -> None:
         unique_track_ids = {r["track_id"] for r in data}
         unique_artist_ids = {r["artist_id"] for r in data}
 
@@ -153,9 +155,9 @@ class SpotifyAPIProcessor:
 
         TrackArtist.objects.bulk_create(relations_to_create, ignore_conflicts=True)
 
-    def split_into_batches(self, items, batch_size):
+    def split_into_batches(self, items: list, batch_size: int):
         for i in range(0, len(items), batch_size):
             yield items[i : i + batch_size]
 
-    def get_objects_map(self, model, ids):
+    def get_objects_map(self, model, ids: Iterable[str]) -> dict:
         return {obj.spotify_id: obj for obj in model.objects.filter(spotify_id__in=ids)}

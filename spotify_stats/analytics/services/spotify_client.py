@@ -18,7 +18,7 @@ class BaseSpotifyClient:
         self.token = None
         self.token_expires_at = 0
 
-    def get_access_token(self):
+    def get_access_token(self) -> str:
         if self.token and time.time() < self.token_expires_at:
             return self.token
 
@@ -45,7 +45,7 @@ class BaseSpotifyClient:
 
         return self.token
 
-    def _get_headers(self):
+    def _get_headers(self) -> dict:
         token = self.get_access_token()
         headers = {"Authorization": f"Bearer {token}"}
         return headers
@@ -53,14 +53,14 @@ class BaseSpotifyClient:
 
 class SyncSpotifyClient(BaseSpotifyClient):
 
-    def get_album(self, spotify_id):
+    def get_album(self, spotify_id: str) -> dict:
         headers = self._get_headers()
         url = f"{self.base_url}/v1/albums/{spotify_id}"
 
         response = requests.get(url, headers=headers)
         return response.json()
 
-    def get_several_albums(self, spotify_ids: list):
+    def get_several_albums(self, spotify_ids: list[str]) -> list[dict]:
         headers = self._get_headers()
         params = {
             "ids": ",".join([id_ for id_ in spotify_ids]),
@@ -70,14 +70,14 @@ class SyncSpotifyClient(BaseSpotifyClient):
         response = requests.get(url, headers=headers, params=params)
         return response.json()
 
-    def get_artist(self, spotify_id):
+    def get_artist(self, spotify_id: str) -> dict:
         headers = self._get_headers()
         url = f"{self.base_url}/v1/artists/{spotify_id}"
 
         response = requests.get(url, headers=headers)
         return response.json()
 
-    def get_several_artists(self, spotify_ids: list):
+    def get_several_artists(self, spotify_ids: list[str]) -> list[dict]:
         headers = self._get_headers()
         params = {
             "ids": ",".join([id_ for id_ in spotify_ids]),
@@ -87,14 +87,14 @@ class SyncSpotifyClient(BaseSpotifyClient):
         response = requests.get(url, headers=headers, params=params)
         return response.json()
 
-    def get_track(self, spotify_id):
+    def get_track(self, spotify_id: str) -> dict:
         headers = self._get_headers()
         url = f"{self.base_url}/v1/tracks/{spotify_id}"
 
         response = requests.get(url, headers=headers)
         return response.json()
 
-    def get_several_tracks(self, spotify_ids: list):
+    def get_several_tracks(self, spotify_ids: list[str]) -> list[dict]:
         headers = self._get_headers()
         params = {
             "ids": ",".join([str(id_) for id_ in spotify_ids]),
@@ -107,7 +107,7 @@ class SyncSpotifyClient(BaseSpotifyClient):
 
 class AsyncSpotifyClient(BaseSpotifyClient):
 
-    async def get_album(self, spotify_id):
+    async def get_album(self, spotify_id: str) -> dict:
         headers = self._get_headers()
         url = f"{self.base_url}/v1/albums/{spotify_id}"
 
@@ -116,7 +116,7 @@ class AsyncSpotifyClient(BaseSpotifyClient):
                 response.raise_for_status()
                 return await response.json()
 
-    async def get_several_albums(self, spotify_ids: list):
+    async def get_several_albums(self, spotify_ids: list[str]) -> list[dict]:
         headers = self._get_headers()
         params = {
             "ids": ",".join([id_ for id_ in spotify_ids]),
@@ -128,7 +128,7 @@ class AsyncSpotifyClient(BaseSpotifyClient):
                 response.raise_for_status()
                 return await response.json()
 
-    async def get_artist(self, spotify_id):
+    async def get_artist(self, spotify_id: str) -> dict:
         headers = self._get_headers()
         url = f"{self.base_url}/v1/artists/{spotify_id}"
 
@@ -137,7 +137,7 @@ class AsyncSpotifyClient(BaseSpotifyClient):
                 response.raise_for_status()
                 return await response.json()
 
-    async def get_several_artists(self, spotify_ids: list):
+    async def get_several_artists(self, spotify_ids: list[str]) -> list[dict]:
         headers = self._get_headers()
         params = {
             "ids": ",".join([str(id_) for id_ in spotify_ids]),
@@ -149,7 +149,16 @@ class AsyncSpotifyClient(BaseSpotifyClient):
                 response.raise_for_status()
                 return await response.json()
 
-    async def get_several_tracks(self, spotify_ids: list):
+    async def get_track(self, spotify_id: str) -> dict:
+        headers = self._get_headers()
+        url = f"{self.base_url}/v1/tracks/{spotify_id}"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                return await response.json()
+
+    async def get_several_tracks(self, spotify_ids: list[str]) -> list[dict]:
         headers = self._get_headers()
         params = {
             "ids": ",".join([str(id_) for id_ in spotify_ids]),
@@ -158,14 +167,5 @@ class AsyncSpotifyClient(BaseSpotifyClient):
 
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers, params=params) as response:
-                response.raise_for_status()
-                return await response.json()
-
-    async def get_track(self, spotify_id):
-        headers = self._get_headers()
-        url = f"{self.base_url}/v1/tracks/{spotify_id}"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as response:
                 response.raise_for_status()
                 return await response.json()
