@@ -1,5 +1,28 @@
 class SpotifyAPIParser:
 
+    def parse_several_artists_response_data(self, response_data):
+        artists_map = {}
+
+        for artist_data in response_data.get("artists", []):
+            result = self.parse_artist_response_data(artist_data)
+
+            artists_map.update(result["artists_map"])
+
+        return {
+            "artists": list(artists_map.values()),
+        }
+
+    def parse_artist_response_data(self, artist_data):
+        artists_map = {}
+
+        parsed_artist = self.parse_artist(artist_data)
+        if parsed_artist:
+            artists_map[parsed_artist["id"]] = parsed_artist
+
+        return {
+            "artists_map": artists_map,
+        }
+
     def parse_several_tracks_response_data(self, response_data):
         artists_map = {}
         albums_map = {}
@@ -26,14 +49,14 @@ class SpotifyAPIParser:
             "track_artists_to_create": track_artists_relations,
         }
 
-    def parse_track_response_data(self, response_data):
+    def parse_track_response_data(self, track_data):
         albums_map = {}
         artists_map = {}
         tracks_map = {}
         album_artists_relations = []
         track_artists_relations = []
 
-        parsed_track = self.parse_track(response_data)
+        parsed_track = self.parse_track(track_data)
         parsed_album = parsed_track.get("album", {})
 
         if parsed_album:

@@ -77,7 +77,9 @@ class FileProcessingService:
                 }
             )
 
-        Track.objects.bulk_create(tracks_to_create, ignore_conflicts=True)
+        Track.objects.bulk_create(
+            tracks_to_create, batch_size=500, ignore_conflicts=True
+        )
 
         all_spotify_ids = [data["spotify_id"] for data in listening_history_data]
         tracks_map = {
@@ -99,7 +101,7 @@ class FileProcessingService:
                 )
 
         ListeningHistory.objects.bulk_create(
-            listening_history_to_create, ignore_conflicts=True
+            listening_history_to_create, batch_size=500, ignore_conflicts=True
         )
 
         log.info(
@@ -194,6 +196,10 @@ class FileProcessingService:
             return None
 
         return played_at
+
+    def split_into_batches(self, items, batch_size):
+        for i in range(0, len(items), batch_size):
+            yield items[i : i + batch_size]
 
     def safe_strip(self, value: str) -> str | None:
         return value.strip() if isinstance(value, str) else None
