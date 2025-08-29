@@ -23,6 +23,7 @@ dependencies = [
     "pytest-django>=4.11.1",
     "pytest-mock>=3.14.1",
     "ruff>=0.12.8",
+    "tenacity>=9.1.2",
 ]
 
 [tool.ruff]

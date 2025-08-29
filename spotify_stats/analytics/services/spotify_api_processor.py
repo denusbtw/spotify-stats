@@ -3,7 +3,9 @@ import logging
 import uuid
 from typing import Iterable
 
+from aiohttp import ClientError
 from asgiref.sync import sync_to_async
+from tenacity import retry, retry_if_exception_type, wait_fixed, stop_after_attempt
 
 from .spotify_client import AsyncSpotifyClient
 from .spotify_api_parser import SpotifyAPIParser
@@ -45,18 +47,45 @@ class SpotifyAPIProcessor:
 
         await asyncio.gather(*tasks)
 
+    @retry(
+        retry=retry_if_exception_type(ClientError),
+        wait=wait_fixed(2),
+        stop=stop_after_attempt(3),
+        before_sleep=lambda retry_state: log.info(
+            f"Retrying {retry_state.fn.__name__} in {retry_state.seconds.since_start}s. "
+            f"Attempt #{retry_state.attempt_number}..."
+        ),
+    )
     async def process_tracks_batch(self, batch: list[str]) -> None:
-        # TODO: add retry mechanism
-        response = await self.spotify_client.get_several_tracks(batch)
-        parsed_response = self.parser.parse_several_tracks_response_data(response)
+        try:
+            response = await self.spotify_client.get_several_tracks(batch)
+            parsed_response = self.parser.parse_several_tracks_response_data(response)
+            await sync_to_async(self.process_and_save_tracks_data)(parsed_response)
+        except ClientError as e:
+            log.warning(f"Client error during tracks batch processing: {e}")
+            raise
+        except Exception as e:
+            log.error(f"Failed to process batch {batch}: {e}")
 
-        await sync_to_async(self.process_and_save_tracks_data)(parsed_response)
-
+    @retry(
+        retry=retry_if_exception_type(ClientError),
+        wait=wait_fixed(2),
+        stop=stop_after_attempt(3),
+        before_sleep=lambda retry_state: log.info(
+            f"Retrying {retry_state.fn.__name__} in {retry_state.seconds.since_start}s. "
+            f"Attempt #{retry_state.attempt_number}..."
+        ),
+    )
     async def process_artists_batch(self, batch: list[str]) -> None:
-        response = await self.spotify_client.get_several_artists(batch)
-        parsed_response = self.parser.parse_several_artists_response_data(response)
-
-        await sync_to_async(self.bulk_update_artists)(parsed_response["artists"])
+        try:
+            response = await self.spotify_client.get_several_artists(batch)
+            parsed_response = self.parser.parse_several_artists_response_data(response)
+            await sync_to_async(self.bulk_update_artists)(parsed_response["artists"])
+        except ClientError as e:
+            log.warning(f"Client error during artists batch processing: {e}")
+            raise
+        except Exception as e:
+            log.error(f"Failed to process batch {batch}: {e}")
 
     def process_and_save_tracks_data(self, parsed_response: dict) -> None:
         self.bulk_create_artists(parsed_response["artists_to_create"])

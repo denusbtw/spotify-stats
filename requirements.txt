@@ -16,3 +16,4 @@ django-debug-toolbar~=6.0.0
 djangorestframework-simplejwt~=5.5.1
 django-cors-headers~=4.7.0
 django-storages[s3]~=1.14.6
+tenacity~=9.1.2
