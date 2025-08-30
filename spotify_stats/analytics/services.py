@@ -38,144 +38,14 @@ from spotify_stats.catalog.models import Artist, Track, Album, AlbumArtist, Trac
 log = logging.getLogger()
 
 
-class SpotifyAPIProcessor:
+def split_into_batches(items: list, batch_size: int):
+    for i in range(0, len(items), batch_size):
+        yield items[i : i + batch_size]
 
-    def __init__(self):
-        self.spotify_client = AsyncSpotifyClient()
-        self.parser = SpotifyAPIParser()
-        self.batch_size = 50
 
-    async def enrich_spotify_metadata(self, track_spotify_ids: list[uuid.UUID]) -> None:
-        tasks = []
-        for batch in self.split_into_batches(track_spotify_ids, self.batch_size):
-            tasks.append(self.process_tracks_batch(batch))
+def get_objects_map(model, ids: Iterable[str]) -> dict:
+    return {obj.spotify_id: obj for obj in model.objects.filter(spotify_id__in=ids)}
 
-        await asyncio.gather(*tasks)
-
-        await self.enrich_artists_covers()
-
-    async def enrich_artists_covers(self) -> None:
-        artists_spotify_ids = await sync_to_async(
-            lambda: list(
-                Artist.objects.without_cover().values_list("spotify_id", flat=True)
-            )
-        )()
-
-        tasks = []
-        for batch in self.split_into_batches(artists_spotify_ids, self.batch_size):
-            tasks.append(self.process_artists_batch(batch))
-
-        await asyncio.gather(*tasks)
-
-    @retry(
-        retry=retry_if_exception_type(ClientError),
-        wait=wait_fixed(2),
-        stop=stop_after_attempt(3),
-        before_sleep=lambda retry_state: log.info(
-            f"Retrying {retry_state.fn.__name__} in {retry_state.seconds.since_start}s. "
-            f"Attempt #{retry_state.attempt_number}..."
-        ),
-    )
-    async def process_tracks_batch(self, batch: list[str]) -> None:
-        try:
-            response = await self.spotify_client.get_several_tracks(batch)
-            parsed_response = self.parser.parse_several_tracks_response_data(response)
-            await sync_to_async(self.process_and_save_tracks_data)(parsed_response)
-        except ClientError as e:
-            log.warning(f"Client error during tracks batch processing: {e}")
-            raise
-        except Exception as e:
-            log.error(f"Failed to process batch {batch}: {e}")
-
-    @retry(
-        retry=retry_if_exception_type(ClientError),
-        wait=wait_fixed(2),
-        stop=stop_after_attempt(3),
-        before_sleep=lambda retry_state: log.info(
-            f"Retrying {retry_state.fn.__name__} in {retry_state.seconds.since_start}s. "
-            f"Attempt #{retry_state.attempt_number}..."
-        ),
-    )
-    async def process_artists_batch(self, batch: list[str]) -> None:
-        try:
-            response = await self.spotify_client.get_several_artists(batch)
-            parsed_response = self.parser.parse_several_artists_response_data(response)
-            await sync_to_async(self.bulk_update_artists)(parsed_response["artists"])
-        except ClientError as e:
-            log.warning(f"Client error during artists batch processing: {e}")
-            raise
-        except Exception as e:
-            log.error(f"Failed to process batch {batch}: {e}")
-
-    def process_and_save_tracks_data(self, parsed_response: dict) -> None:
-        self.bulk_create_artists(parsed_response["artists_to_create"])
-        self.bulk_create_albums(parsed_response["albums_to_create"])
-
-        self.bulk_update_tracks(parsed_response["tracks_to_update"])
-
-        self.bulk_create_albums_artists(parsed_response["album_artists_to_create"])
-        self.bulk_create_track_artists(parsed_response["track_artists_to_create"])
-
-    def bulk_update_artists(self, data: list[dict]) -> None:
-        unique_artist_ids = {r["id"] for r in data}
-
-        artists_map = self.get_objects_map(Artist, unique_artist_ids)
-
-        artists_to_update = []
-        for r in data:
-            artist = artists_map.get(r["id"])
-            if artist:
-                artist.cover_url = r["cover_url"]
-                artists_to_update.append(artist)
-
-        Artist.objects.bulk_update(
-            artists_to_update, batch_size=500, fields=["cover_url"]
-        )
-
-    def bulk_update_tracks(self, data: list[dict]) -> None:
-        unique_track_ids = {r["track_id"] for r in data}
-        unique_album_ids = {r["album_id"] for r in data}
-
-        tracks_map = self.get_objects_map(Track, unique_track_ids)
-        albums_map = self.get_objects_map(Album, unique_album_ids)
-
-        tracks_to_update = []
-        for r in data:
-            track = tracks_map.get(r["track_id"])
-            album = albums_map.get(r["album_id"])
-            if track and album:
-                track.album = album
-                tracks_to_update.append(track)
-
-        Track.objects.bulk_update(tracks_to_update, fields=["album"])
-
-    def bulk_create_artists(self, artists_data: list[dict]) -> None:
-        artists_to_create = [
-            Artist(
-                spotify_id=data["id"],
-                name=data["name"],
-            )
-            for data in artists_data
-        ]
-        Artist.objects.bulk_create(artists_to_create, ignore_conflicts=True)
-
-    def bulk_create_albums(self, albums_data: list[dict]) -> None:
-        albums_to_create = [
-            Album(
-                spotify_id=data["id"],
-                name=data["name"],
-                cover_url=data["cover_url"],
-            )
-            for data in albums_data
-        ]
-        Album.objects.bulk_create(albums_to_create, ignore_conflicts=True)
-
-    def bulk_create_albums_artists(self, data: list[dict]) -> None:
-        unique_album_ids = {r["album_id"] for r in data}
-        unique_artist_ids = {r["artist_id"] for r in data}
-
-        albums_map = self.get_objects_map(Album, unique_album_ids)
-        artists_map = self.get_objects_map(Artist, unique_artist_ids)
 
 class SpotifyClient:
 
@@ -418,104 +288,6 @@ class SpotifyAuthService:
 
 class SpotifyAPIParser:
 
-    def parse_several_artists_response_data(self, response_data: list[dict]) -> dict:
-        artists_map = {}
-
-        for artist_data in response_data.get("artists", []):
-            result = self.parse_artist_response_data(artist_data)
-
-            artists_map.update(result["artists_map"])
-
-        return {
-            "artists": list(artists_map.values()),
-        }
-
-    def parse_artist_response_data(self, artist_data: dict) -> dict:
-        artists_map = {}
-
-        parsed_artist = self.parse_artist(artist_data)
-        if parsed_artist:
-            artists_map[parsed_artist["id"]] = parsed_artist
-
-        return {
-            "artists_map": artists_map,
-        }
-
-    def parse_several_tracks_response_data(self, response_data: list[dict]) -> dict:
-        artists_map = {}
-        albums_map = {}
-        tracks_map = {}
-
-        album_artists_relations = []
-        track_artists_relations = []
-
-        tracks_data = response_data.get("tracks", [])
-        for track_data in tracks_data:
-            result = self.parse_track_response_data(track_data)
-
-            artists_map.update(result["artists_map"])
-            albums_map.update(result["albums_map"])
-            tracks_map.update(result["tracks_map"])
-            album_artists_relations.extend(result["album_artists_relations"])
-            track_artists_relations.extend(result["track_artists_relations"])
-
-        return {
-            "artists_to_create": list(artists_map.values()),
-            "albums_to_create": list(albums_map.values()),
-            "tracks_to_update": list(tracks_map.values()),
-            "album_artists_to_create": album_artists_relations,
-            "track_artists_to_create": track_artists_relations,
-        }
-
-    def parse_track_response_data(self, track_data: dict) -> dict:
-        albums_map = {}
-        artists_map = {}
-        tracks_map = {}
-        album_artists_relations = []
-        track_artists_relations = []
-
-        parsed_track = self.parse_track(track_data)
-        parsed_album = parsed_track.get("album", {})
-
-        if parsed_album:
-            parsed_album_short = parsed_album.copy()
-            del parsed_album_short["artists"]
-
-            albums_map[parsed_album["id"]] = parsed_album_short
-
-            tracks_map[parsed_track["id"]] = {
-                "track_id": parsed_track["id"],
-                "album_id": parsed_album["id"],
-            }
-
-        album_artists_data = parsed_album.get("artists", [])
-        for artist_data in album_artists_data:
-            artists_map[artist_data["id"]] = artist_data
-            album_artists_relations.append(
-                {
-                    "album_id": parsed_album["id"],
-                    "artist_id": artist_data["id"],
-                }
-            )
-
-        track_artists_data = parsed_track.get("artists", [])
-        for artist_data in track_artists_data:
-            artists_map[artist_data["id"]] = artist_data
-            track_artists_relations.append(
-                {
-                    "track_id": parsed_track["id"],
-                    "artist_id": artist_data["id"],
-                }
-            )
-
-        return {
-            "artists_map": artists_map,
-            "albums_map": albums_map,
-            "tracks_map": tracks_map,
-            "album_artists_relations": album_artists_relations,
-            "track_artists_relations": track_artists_relations,
-        }
-
     def parse_artist(self, data: dict) -> dict:
         return {
             "id": data.get("id"),
@@ -524,7 +296,7 @@ class SpotifyAPIParser:
         }
 
     def parse_album(self, data: dict) -> dict:
-        artists = self.parse_several_artists(data.get("artists", []))
+        artists = [self.parse_artist(d) for d in data.get("artists")]
 
         return {
             "id": data.get("id"),
@@ -535,7 +307,7 @@ class SpotifyAPIParser:
 
     def parse_track(self, data: dict) -> dict:
         album = self.parse_album(data.get("album", {}))
-        artists = self.parse_several_artists(data.get("artists", []))
+        artists = [self.parse_artist(d) for d in data.get("artists")]
 
         return {
             "id": data.get("id"),
@@ -544,14 +316,320 @@ class SpotifyAPIParser:
             "artists": artists,
         }
 
-    def parse_several_artists(self, list_data: list[dict]) -> list[dict]:
-        return [self.parse_artist(artist_data) for artist_data in list_data]
-
     def extract_cover_url(self, data: dict) -> str:
         cover_url = ""
         if data.get("images"):
             cover_url = data["images"][0].get("url", "")
         return cover_url
+
+
+class SpotifyDataAggregator:
+
+    def __init__(self, parser: SpotifyAPIParser):
+        self.artists_map = {}
+        self.albums_map = {}
+        self.tracks_map = {}
+        self.album_artists_relations = []
+        self.track_artists_relations = []
+        self.parser = parser
+
+    def process_several_artists_data(self, artists_data: list[dict]):
+        for artist_data in artists_data:
+            self.process_artist_data(artist_data)
+
+    def process_artist_data(self, artist_data: dict):
+        parsed_artist = self.parser.parse_artist(artist_data)
+        if parsed_artist:
+            self.artists_map[parsed_artist["id"]] = parsed_artist
+
+    def process_several_tracks_data(self, tracks_data: list[dict]):
+        for track_data in tracks_data:
+            self.process_track_data(track_data)
+
+    def process_track_data(self, track_data: dict):
+        parsed_track = self.parser.parse_track(track_data)
+
+        parsed_album = parsed_track.get("album")
+        if parsed_album:
+            self.albums_map[parsed_album["id"]] = parsed_album
+
+            self.tracks_map[parsed_track["id"]] = {
+                "track_id": parsed_track["id"],
+                "album_id": parsed_album["id"],
+            }
+
+        for parsed_artist in parsed_track.get("artists"):
+            self.artists_map[parsed_artist["id"]] = parsed_artist
+            self.track_artists_relations.append(
+                {
+                    "track_id": parsed_track["id"],
+                    "artist_id": parsed_artist["id"],
+                }
+            )
+
+        if parsed_album:
+            for parsed_artist in parsed_album.get("artists"):
+                self.artists_map[parsed_artist["id"]] = parsed_artist
+                self.album_artists_relations.append(
+                    {
+                        "album_id": parsed_album["id"],
+                        "artist_id": parsed_artist["id"],
+                    }
+                )
+
+    def get_aggregated_data(self) -> dict:
+        return {
+            "artists": list(self.artists_map.values()),
+            "albums": list(self.albums_map.values()),
+            "tracks": list(self.tracks_map.values()),
+            "album_artists_relations": self.album_artists_relations,
+            "track_artists_relations": self.track_artists_relations,
+        }
+
+
+class SpotifyDBService:
+
+    def save_enriched_data(
+        self,
+        artists: list[dict],
+        albums: list[dict],
+        tracks: list[dict],
+        album_artists_relations: list[dict],
+        track_artists_relations: list[dict],
+    ):
+        try:
+            self.bulk_create_artists(artists)
+            self.bulk_create_albums(albums)
+            self.bulk_update_tracks(tracks)
+            self.bulk_create_albums_artists(album_artists_relations)
+            self.bulk_create_track_artists(track_artists_relations)
+
+            log.info("Successfully saved enriched Spotify metadata to the database.")
+
+        except Exception as e:
+            log.error(f"Failed to save enriched data: {e}")
+            raise
+
+    def bulk_create_artists(self, artists_data: list[dict]) -> None:
+        existing_artist_spotify_ids = set(
+            Artist.objects.filter(
+                spotify_id__in=[a["id"] for a in artists_data]
+            ).values_list("spotify_id", flat=True)
+        )
+
+        artists_to_create = [
+            Artist(
+                spotify_id=data["id"],
+                name=data["name"],
+            )
+            for data in artists_data
+            if data["id"] not in existing_artist_spotify_ids
+        ]
+
+        if artists_to_create:
+            Artist.objects.bulk_create(artists_to_create, ignore_conflicts=True)
+            log.info(f"Created {len(artists_to_create)} new artists.")
+
+    def bulk_update_artists(self, artists_data: list[dict]) -> None:
+        unique_artist_ids = {data["id"] for data in artists_data}
+        artists_map = get_objects_map(Artist, unique_artist_ids)
+
+        artists_to_update = []
+        for data in artists_data:
+            artist = artists_map.get(data["id"])
+            if artist:
+                artist.cover_url = data["cover_url"]
+                artists_to_update.append(artist)
+
+        if artists_to_update:
+            Artist.objects.bulk_update(
+                artists_to_update, batch_size=500, fields=["cover_url"]
+            )
+            log.info(f"Updated {len(artists_to_update)} artists.")
+
+    def bulk_create_albums(self, albums_data: list[dict]) -> None:
+        existing_album_spotify_ids = set(
+            Album.objects.filter(
+                spotify_id__in=[a["id"] for a in albums_data]
+            ).values_list("spotify_id", flat=True)
+        )
+
+        albums_to_create = [
+            Album(
+                spotify_id=data["id"],
+                name=data["name"],
+                cover_url=data["cover_url"],
+            )
+            for data in albums_data
+            if data["id"] not in existing_album_spotify_ids
+        ]
+
+        if albums_to_create:
+            Album.objects.bulk_create(albums_to_create, ignore_conflicts=True)
+            log.info(f"Created {len(albums_to_create)} new albums.")
+
+    def bulk_update_tracks(self, tracks_data: list[dict]) -> None:
+        unique_track_ids = {r["track_id"] for r in tracks_data}
+        unique_album_ids = {r["album_id"] for r in tracks_data}
+
+        tracks_map = get_objects_map(Track, unique_track_ids)
+        albums_map = get_objects_map(Album, unique_album_ids)
+
+        tracks_to_update = []
+        for r in tracks_data:
+            track = tracks_map.get(r["track_id"])
+            album = albums_map.get(r["album_id"])
+            if track and album:
+                track.album = album
+                tracks_to_update.append(track)
+
+        if tracks_to_update:
+            Track.objects.bulk_update(tracks_to_update, fields=["album"])
+            log.info(f"Updated {len(tracks_to_update)} tracks.")
+
+    def bulk_create_albums_artists(self, relations_data: list[dict]) -> None:
+        unique_album_ids = {data["album_id"] for data in relations_data}
+        unique_artist_ids = {data["artist_id"] for data in relations_data}
+
+        albums_map = get_objects_map(Album, unique_album_ids)
+        artists_map = get_objects_map(Artist, unique_artist_ids)
+
+        relations_to_create = []
+        for data in relations_data:
+            album = albums_map[data["album_id"]]
+            artist = artists_map[data["artist_id"]]
+
+            if album and artist:
+                relations_to_create.append(
+                    AlbumArtist(album=album, artist=artist),
+                )
+
+        if relations_to_create:
+            AlbumArtist.objects.bulk_create(relations_to_create, ignore_conflicts=True)
+            log.info(f"Created {len(relations_to_create)} albums artists.")
+
+    def bulk_create_track_artists(self, relations_data: list[dict]) -> None:
+        unique_track_ids = {data["track_id"] for data in relations_data}
+        unique_artist_ids = {data["artist_id"] for data in relations_data}
+
+        tracks_map = get_objects_map(Track, unique_track_ids)
+        artists_map = get_objects_map(Artist, unique_artist_ids)
+
+        relations_to_create = []
+        for data in relations_data:
+            track = tracks_map[data["track_id"]]
+            artist = artists_map[data["artist_id"]]
+
+            if track and artist:
+                relations_to_create.append(
+                    TrackArtist(track=track, artist=artist),
+                )
+
+        if relations_to_create:
+            TrackArtist.objects.bulk_create(relations_to_create, ignore_conflicts=True)
+            log.info(f"Created {len(relations_to_create)} tracks artists.")
+
+
+class SpotifyAPIProcessor:
+
+    def __init__(
+        self,
+        spotify_client: SpotifyClient,
+        db_service: SpotifyDBService,
+        parser: SpotifyAPIParser,
+    ):
+        self.spotify_client = spotify_client
+        self.db_service = db_service
+        self.parser = parser
+        self.batch_size = 50
+
+    async def enrich_spotify_metadata(self, track_spotify_ids: list[uuid.UUID]) -> None:
+        aggregator = SpotifyDataAggregator(parser=self.parser)
+        tasks = []
+        for batch in split_into_batches(track_spotify_ids, self.batch_size):
+            tasks.append(self.process_tracks_batch(batch, aggregator))
+
+        await asyncio.gather(*tasks)
+
+        aggregated_data = aggregator.get_aggregated_data()
+        await sync_to_async(self.db_service.save_enriched_data)(
+            artists=aggregated_data["artists"],
+            albums=aggregated_data["albums"],
+            tracks=aggregated_data["tracks"],
+            album_artists_relations=aggregated_data["album_artists_relations"],
+            track_artists_relations=aggregated_data["track_artists_relations"],
+        )
+
+        await self.enrich_artists_covers()
+
+    async def enrich_artists_covers(self) -> None:
+        artists_spotify_ids = await sync_to_async(
+            lambda: list(
+                Artist.objects.without_cover().values_list("spotify_id", flat=True)
+            )
+        )()
+
+        aggregator = SpotifyDataAggregator(parser=self.parser)
+        tasks = []
+        for batch in split_into_batches(artists_spotify_ids, self.batch_size):
+            tasks.append(self.process_artists_batch(batch, aggregator))
+
+        await asyncio.gather(*tasks)
+
+        aggregated_data = aggregator.get_aggregated_data()
+        await sync_to_async(self.db_service.bulk_update_artists)(
+            aggregated_data["artists"]
+        )
+
+    @retry(
+        retry=retry_if_exception_type(ClientError),
+        wait=wait_fixed(2),
+        stop=stop_after_attempt(3),
+        before_sleep=lambda retry_state: log.info(
+            f"Retrying {retry_state.fn.__name__} in {retry_state.seconds.since_start}s. "
+            f"Attempt #{retry_state.attempt_number}..."
+        ),
+    )
+    async def process_tracks_batch(self, batch: list[str], aggregator) -> None:
+        try:
+            response_data = await self.spotify_client.get_several_tracks(batch)
+            if "tracks" not in response_data:
+                raise ClientError
+
+            tracks_data = response_data["tracks"]
+            aggregator.process_several_tracks_data(tracks_data)
+        except ClientError as e:
+            log.warning(f"Client error during tracks batch processing: {e}")
+            raise
+        except Exception as e:
+            log.error(
+                f"Failed to process tracks batch {batch}, type: {type(batch)}: {e}"
+            )
+
+    @retry(
+        retry=retry_if_exception_type(ClientError),
+        wait=wait_fixed(2),
+        stop=stop_after_attempt(3),
+        before_sleep=lambda retry_state: log.info(
+            f"Retrying {retry_state.fn.__name__} in {retry_state.seconds.since_start}s. "
+            f"Attempt #{retry_state.attempt_number}..."
+        ),
+    )
+    async def process_artists_batch(self, batch: list[str], aggregator) -> None:
+        try:
+            response_data = await self.spotify_client.get_several_artists(batch)
+            if "artists" not in response_data:
+                raise ClientError
+
+            artists_data = response_data["artists"]
+            aggregator.process_several_artists_data(artists_data)
+        except ClientError as e:
+            log.warning(f"Client error during artists batch processing: {e}")
+            raise
+        except Exception as e:
+            log.error(
+                f"Failed to process artists batch {batch}, type: {type(batch)}: {e}"
+            )
 
 
 class FileProcessingService:
