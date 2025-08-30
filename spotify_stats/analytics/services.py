@@ -177,200 +177,118 @@ class SpotifyAPIProcessor:
         albums_map = self.get_objects_map(Album, unique_album_ids)
         artists_map = self.get_objects_map(Artist, unique_artist_ids)
 
-        relations_to_create = [
-            AlbumArtist(
-                album=albums_map[r["album_id"]],
-                artist=artists_map[r["artist_id"]],
-            )
-            for r in data
-        ]
+class SpotifyClient:
 
-        AlbumArtist.objects.bulk_create(relations_to_create, ignore_conflicts=True)
-
-    def bulk_create_track_artists(self, data: list[dict]) -> None:
-        unique_track_ids = {r["track_id"] for r in data}
-        unique_artist_ids = {r["artist_id"] for r in data}
-
-        tracks_map = self.get_objects_map(Track, unique_track_ids)
-        artists_map = self.get_objects_map(Artist, unique_artist_ids)
-
-        relations_to_create = [
-            TrackArtist(
-                track=tracks_map[r["track_id"]],
-                artist=artists_map[r["artist_id"]],
-            )
-            for r in data
-        ]
-
-        TrackArtist.objects.bulk_create(relations_to_create, ignore_conflicts=True)
-
-    def split_into_batches(self, items: list, batch_size: int):
-        for i in range(0, len(items), batch_size):
-            yield items[i : i + batch_size]
-
-    def get_objects_map(self, model, ids: Iterable[str]) -> dict:
-        return {obj.spotify_id: obj for obj in model.objects.filter(spotify_id__in=ids)}
-
-
-class BaseSpotifyClient:
     def __init__(self):
         self.base_url = "https://api.spotify.com"
         self.client_id = settings.SPOTIFY_CLIENT_ID
         self.client_secret = settings.SPOTIFY_CLIENT_SECRET
-        self.token = None
+        self.access_token = None
         self.token_expires_at = 0
 
-    def get_access_token(self) -> str:
-        if self.token and time.time() < self.token_expires_at:
-            return self.token
+    async def get_album(self, spotify_id: str) -> dict:
+        url = f"{self.base_url}/v1/albums/{spotify_id}"
+        headers = await self._get_headers()
+        return await self._make_request("get", url, headers=headers)
 
-        cached_token = cache.get("spotify_access_token")
-        if cached_token:
-            self.token = cached_token
-            return cached_token
+    async def get_several_albums(self, spotify_ids: list[str]) -> dict:
+        url = f"{self.base_url}/v1/albums"
+        headers = await self._get_headers()
+        params = {
+            "ids": ",".join([id_ for id_ in spotify_ids]),
+        }
+        return await self._make_request("get", url, headers=headers, params=params)
 
-        auth_url = "https://accounts.spotify.com/api/token"
-        auth_data = {
+    async def get_artist(self, spotify_id: str) -> dict:
+        url = f"{self.base_url}/v1/artists/{spotify_id}"
+        headers = await self._get_headers()
+        return await self._make_request("get", url, headers=headers)
+
+    async def get_several_artists(self, spotify_ids: list[str]) -> dict:
+        url = f"{self.base_url}/v1/artists"
+        headers = await self._get_headers()
+        params = {
+            "ids": ",".join([str(id_) for id_ in spotify_ids]),
+        }
+        return await self._make_request("get", url, headers=headers, params=params)
+
+    async def get_track(self, spotify_id: str) -> dict:
+        url = f"{self.base_url}/v1/tracks/{spotify_id}"
+        headers = await self._get_headers()
+        return await self._make_request("get", url, headers=headers)
+
+    async def get_several_tracks(self, spotify_ids: list[str]) -> dict:
+        url = f"{self.base_url}/v1/tracks"
+        headers = await self._get_headers()
+        params = {
+            "ids": ",".join([str(id_) for id_ in spotify_ids]),
+        }
+        return await self._make_request("get", url, headers=headers, params=params)
+
+    async def _make_request(
+        self,
+        method: str,
+        url: str,
+        headers: dict = None,
+        params: dict = None,
+        data: dict = None,
+    ):
+        async with aiohttp.ClientSession() as session:
+            async with getattr(session, method.lower())(
+                url, headers=headers, params=params, data=data
+            ) as response:
+                response.raise_for_status()
+                return await response.json()
+
+    async def _get_headers(self) -> dict:
+        access_token = await self.get_access_token()
+        headers = {"Authorization": f"Bearer {access_token}"}
+        return headers
+
+    async def get_access_token(self) -> str | None:
+        if self.access_token and time.time() < self.token_expires_at:
+            return self.access_token
+
+        cached_access_token = cache.get("spotify_access_token")
+        if cached_access_token:
+            self.access_token = cached_access_token
+            return cached_access_token
+
+        basic_string = f"{self.client_id}:{self.client_secret}"
+        basic_bytes = basic_string.encode("utf-8")
+        basic_bytes_encoded = base64.b64encode(basic_bytes)
+        basic_string_decoded = basic_bytes_encoded.decode("utf-8")
+
+        url = "https://accounts.spotify.com/api/token"
+        headers = {"Authorization": f"Basic {basic_string_decoded}"}
+        data = {
             "grant_type": "client_credentials",
             "client_id": self.client_id,
             "client_secret": self.client_secret,
         }
 
-        response = requests.post(auth_url, data=auth_data)
-        token_data = response.json()
+        try:
+            response_data = await self._make_request(
+                "post", url, headers=headers, data=data
+            )
 
-        self.token = token_data["access_token"]
-        expires_in = token_data["expires_in"]
+            access_token = response_data.get("access_token")
+            expires_in = response_data.get("expires_in")
 
-        cache.set("spotify_access_token", self.token, expires_in - 60)
-        self.token_expires_at = time.time() + expires_in
+            if not all([access_token, expires_in]):
+                log.error(f"Missing required token data in response.")
+                return None
 
-        return self.token
+            self.access_token = access_token
+            self.token_expires_at = time.time() + expires_in
 
-    def _get_headers(self) -> dict:
-        token = self.get_access_token()
-        headers = {"Authorization": f"Bearer {token}"}
-        return headers
+            cache.set("spotify_access_token", self.access_token, expires_in - 60)
 
+            return self.access_token
 
-class SyncSpotifyClient(BaseSpotifyClient):
-
-    def get_album(self, spotify_id: str) -> dict:
-        headers = self._get_headers()
-        url = f"{self.base_url}/v1/albums/{spotify_id}"
-
-        response = requests.get(url, headers=headers)
-        return response.json()
-
-    def get_several_albums(self, spotify_ids: list[str]) -> list[dict]:
-        headers = self._get_headers()
-        params = {
-            "ids": ",".join([id_ for id_ in spotify_ids]),
-        }
-        url = f"{self.base_url}/v1/albums"
-
-        response = requests.get(url, headers=headers, params=params)
-        return response.json()
-
-    def get_artist(self, spotify_id: str) -> dict:
-        headers = self._get_headers()
-        url = f"{self.base_url}/v1/artists/{spotify_id}"
-
-        response = requests.get(url, headers=headers)
-        return response.json()
-
-    def get_several_artists(self, spotify_ids: list[str]) -> list[dict]:
-        headers = self._get_headers()
-        params = {
-            "ids": ",".join([id_ for id_ in spotify_ids]),
-        }
-        url = f"{self.base_url}/v1/artists"
-
-        response = requests.get(url, headers=headers, params=params)
-        return response.json()
-
-    def get_track(self, spotify_id: str) -> dict:
-        headers = self._get_headers()
-        url = f"{self.base_url}/v1/tracks/{spotify_id}"
-
-        response = requests.get(url, headers=headers)
-        return response.json()
-
-    def get_several_tracks(self, spotify_ids: list[str]) -> list[dict]:
-        headers = self._get_headers()
-        params = {
-            "ids": ",".join([str(id_) for id_ in spotify_ids]),
-        }
-        url = f"{self.base_url}/v1/tracks"
-
-        response = requests.get(url, headers=headers, params=params)
-        return response.json()
-
-
-class AsyncSpotifyClient(BaseSpotifyClient):
-
-    async def get_album(self, spotify_id: str) -> dict:
-        headers = self._get_headers()
-        url = f"{self.base_url}/v1/albums/{spotify_id}"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as response:
-                response.raise_for_status()
-                return await response.json()
-
-    async def get_several_albums(self, spotify_ids: list[str]) -> list[dict]:
-        headers = self._get_headers()
-        params = {
-            "ids": ",".join([id_ for id_ in spotify_ids]),
-        }
-        url = f"{self.base_url}/v1/albums"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, params=params) as response:
-                response.raise_for_status()
-                return await response.json()
-
-    async def get_artist(self, spotify_id: str) -> dict:
-        headers = self._get_headers()
-        url = f"{self.base_url}/v1/artists/{spotify_id}"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as response:
-                response.raise_for_status()
-                return await response.json()
-
-    async def get_several_artists(self, spotify_ids: list[str]) -> list[dict]:
-        headers = self._get_headers()
-        params = {
-            "ids": ",".join([str(id_) for id_ in spotify_ids]),
-        }
-        url = f"{self.base_url}/v1/artists"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, params=params) as response:
-                response.raise_for_status()
-                return await response.json()
-
-    async def get_track(self, spotify_id: str) -> dict:
-        headers = self._get_headers()
-        url = f"{self.base_url}/v1/tracks/{spotify_id}"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as response:
-                response.raise_for_status()
-                return await response.json()
-
-    async def get_several_tracks(self, spotify_ids: list[str]) -> list[dict]:
-        headers = self._get_headers()
-        params = {
-            "ids": ",".join([str(id_) for id_ in spotify_ids]),
-        }
-        url = f"{self.base_url}/v1/tracks"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, params=params) as response:
-                response.raise_for_status()
-                return await response.json()
+        except Exception as e:
+            log.error(f"Failed to get new access token: {e}")
+        return None
 
 
 class UserSpotifyClient:
