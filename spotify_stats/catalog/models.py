@@ -3,10 +3,18 @@ from django.db import models
 from spotify_stats.core.models import TimestampedModel, UUIDModel
 
 
+class ArtistQuerySet(models.QuerySet):
+
+    def without_cover(self):
+        return self.filter(cover_url="")
+
+
 class Artist(UUIDModel, TimestampedModel):
     name = models.CharField(max_length=255)
     cover_url = models.URLField()
     spotify_id = models.CharField(max_length=62, unique=True)
+
+    objects = ArtistQuerySet.as_manager()
 
 
 class Album(UUIDModel, TimestampedModel):

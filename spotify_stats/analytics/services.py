@@ -55,16 +55,14 @@ class SpotifyAPIProcessor:
         await self.enrich_artists_covers()
 
     async def enrich_artists_covers(self) -> None:
-        artists_without_cover_spotify_ids = await sync_to_async(
+        artists_spotify_ids = await sync_to_async(
             lambda: list(
-                Artist.objects.filter(cover_url="").values_list("spotify_id", flat=True)
+                Artist.objects.without_cover().values_list("spotify_id", flat=True)
             )
         )()
 
         tasks = []
-        for batch in self.split_into_batches(
-            artists_without_cover_spotify_ids, self.batch_size
-        ):
+        for batch in self.split_into_batches(artists_spotify_ids, self.batch_size):
             tasks.append(self.process_artists_batch(batch))
 
         await asyncio.gather(*tasks)
