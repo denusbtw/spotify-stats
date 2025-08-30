@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 
 from spotify_stats.core.models import TimestampedModel, UUIDModel
 
@@ -41,3 +42,23 @@ class FileUploadJob(UUIDModel, TimestampedModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     file = models.FileField()
     status = models.CharField(max_length=15, choices=Status.choices)
+
+
+class SpotifyProfile(UUIDModel, TimestampedModel):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="spotify_profile",
+    )
+    access_token = models.CharField(max_length=512)
+    refresh_token = models.CharField(max_length=512)
+    expires_at = models.DateTimeField()
+    spotify_id = models.CharField(max_length=64, unique=True)
+    scope = models.CharField(max_length=256)
+
+    def __str__(self):
+        return f"Spotify Profile for {self.user_id}"
+
+    @property
+    def is_token_expired(self):
+        return self.expires_at <= timezone.now()

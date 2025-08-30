@@ -1,3 +1,4 @@
+# TODO: use class methods instead of instance methods
 class SpotifyAPIParser:
 
     def parse_several_artists_response_data(self, response_data: list[dict]) -> dict:

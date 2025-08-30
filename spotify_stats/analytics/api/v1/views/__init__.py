@@ -6,6 +6,7 @@ from .analytics import (
     UserListeningStatsView,
     UserListeningActivityView,
 )
+from .spotify_auth import SpotifyLoginView, SpotifyCallbackView
 
 
 __all__ = [
@@ -16,4 +17,6 @@ __all__ = [
     "UserTopTracksListView",
     "UserListeningStatsView",
     "UserListeningActivityView",
+    "SpotifyLoginView",
+    "SpotifyCallbackView",
 ]

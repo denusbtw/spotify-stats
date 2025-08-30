@@ -7,11 +7,15 @@ from spotify_stats.analytics.api.v1.views import (
     UserTopArtistsListView,
     UserListeningStatsView,
     UserListeningActivityView,
+    SpotifyLoginView,
+    SpotifyCallbackView,
 )
 from spotify_stats.users.api.v1.views import MeDetailView
 
 app_name = "v1"
 urlpatterns = [
+    path("spotify/login/", SpotifyLoginView.as_view(), name="spotify_login"),
+    path("spotify/callback/", SpotifyCallbackView.as_view(), name="spotify_callback"),
     path("me/", MeDetailView.as_view(), name="me_detail"),
     path(
         "me/uploads/",
