@@ -11,6 +11,7 @@ from spotify_stats.analytics.services import (
     SpotifyClient,
     SpotifyDBService,
     SpotifyAPIParser,
+    StreamingDataValidator,
 )
 from spotify_stats.catalog.models import Track
 
@@ -21,7 +22,9 @@ User = get_user_model()
 
 @shared_task
 def process_file_upload_jobs(job_ids: list[uuid.UUID]) -> None:
-    service = FileProcessingService()
+    db_service = SpotifyDBService()
+    validator = StreamingDataValidator()
+    service = FileProcessingService(db_service=db_service, validator=validator)
     service.process_file_upload_jobs(job_ids)
 
     track_ids = list(Track.objects.values_list("spotify_id", flat=True))

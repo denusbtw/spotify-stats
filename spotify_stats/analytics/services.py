@@ -1,6 +1,5 @@
 import asyncio
 import base64
-import datetime
 import json
 import logging
 import time
@@ -27,6 +26,10 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from tenacity import retry, retry_if_exception_type, wait_fixed, stop_after_attempt
 
+from spotify_stats.analytics.exceptions import (
+    InvalidFileContentError,
+    InvalidRecordError,
+)
 from spotify_stats.analytics.models import (
     SpotifyProfile,
     FileUploadJob,
@@ -45,6 +48,18 @@ def split_into_batches(items: list, batch_size: int):
 
 def get_objects_map(model, ids: Iterable[str]) -> dict:
     return {obj.spotify_id: obj for obj in model.objects.filter(spotify_id__in=ids)}
+
+
+def get_base64_auth_string(client_id: str, client_secret: str) -> str:
+    basic_string = f"{client_id}:{client_secret}"
+    basic_bytes = basic_string.encode("utf-8")
+    basic_bytes_encoded = base64.b64encode(basic_bytes)
+    basic_string_decoded = basic_bytes_encoded.decode("utf-8")
+    return basic_string_decoded
+
+
+def safe_strip(value: str) -> str | None:
+    return value.strip() if isinstance(value, str) else None
 
 
 class SpotifyClient:
@@ -124,13 +139,10 @@ class SpotifyClient:
             self.access_token = cached_access_token
             return cached_access_token
 
-        basic_string = f"{self.client_id}:{self.client_secret}"
-        basic_bytes = basic_string.encode("utf-8")
-        basic_bytes_encoded = base64.b64encode(basic_bytes)
-        basic_string_decoded = basic_bytes_encoded.decode("utf-8")
+        base64_auth_string = get_base64_auth_string(self.client_id, self.client_secret)
 
         url = "https://accounts.spotify.com/api/token"
-        headers = {"Authorization": f"Basic {basic_string_decoded}"}
+        headers = {"Authorization": f"Basic {base64_auth_string}"}
         data = {
             "grant_type": "client_credentials",
             "client_id": self.client_id,
@@ -225,13 +237,10 @@ class SpotifyAuthService:
 
     @classmethod
     def get_user_tokens(cls, code):
-        basic_string = f"{cls.client_id}:{cls.client_secret}"
-        basic_bytes = basic_string.encode("utf-8")
-        basic_bytes_encoded = base64.b64encode(basic_bytes)
-        basic_string_decoded = basic_bytes_encoded.decode("utf-8")
+        base64_auth_string = get_base64_auth_string(cls.client_id, cls.client_secret)
 
         headers = {
-            "Authorization": f"Basic {basic_string_decoded}",
+            "Authorization": f"Basic {base64_auth_string}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
         data = {
@@ -263,13 +272,10 @@ class SpotifyAuthService:
 
     @classmethod
     def refresh_access_token(cls, refresh_token):
-        basic_string = f"{cls.client_id}:{cls.client_secret}"
-        basic_bytes = basic_string.encode("utf-8")
-        basic_bytes_encoded = base64.b64encode(basic_bytes)
-        basic_string_decoded = basic_bytes_encoded.decode("utf-8")
+        base64_auth_string = get_base64_auth_string(cls.client_id, cls.client_secret)
 
         headers = {
-            "Authorization": f"Basic {basic_string_decoded}",
+            "Authorization": f"Basic {base64_auth_string}",
             "Content-Type": "application/x-www-form-urlencoded.",
         }
         data = {
@@ -290,7 +296,7 @@ class SpotifyAPIParser:
 
     def parse_artist(self, data: dict) -> dict:
         return {
-            "id": data.get("id"),
+            "spotify_id": data.get("id"),
             "name": data.get("name"),
             "cover_url": self.extract_cover_url(data),
         }
@@ -299,7 +305,7 @@ class SpotifyAPIParser:
         artists = [self.parse_artist(d) for d in data.get("artists")]
 
         return {
-            "id": data.get("id"),
+            "spotify_id": data.get("id"),
             "name": data.get("name"),
             "cover_url": self.extract_cover_url(data),
             "artists": artists,
@@ -310,7 +316,7 @@ class SpotifyAPIParser:
         artists = [self.parse_artist(d) for d in data.get("artists")]
 
         return {
-            "id": data.get("id"),
+            "spotify_id": data.get("id"),
             "name": data.get("name"),
             "album": album,
             "artists": artists,
@@ -340,7 +346,7 @@ class SpotifyDataAggregator:
     def process_artist_data(self, artist_data: dict):
         parsed_artist = self.parser.parse_artist(artist_data)
         if parsed_artist:
-            self.artists_map[parsed_artist["id"]] = parsed_artist
+            self.artists_map[parsed_artist["spotify_id"]] = parsed_artist
 
     def process_several_tracks_data(self, tracks_data: list[dict]):
         for track_data in tracks_data:
@@ -351,29 +357,29 @@ class SpotifyDataAggregator:
 
         parsed_album = parsed_track.get("album")
         if parsed_album:
-            self.albums_map[parsed_album["id"]] = parsed_album
+            self.albums_map[parsed_album["spotify_id"]] = parsed_album
 
-            self.tracks_map[parsed_track["id"]] = {
-                "track_id": parsed_track["id"],
-                "album_id": parsed_album["id"],
+            self.tracks_map[parsed_track["spotify_id"]] = {
+                "track_spotify_id": parsed_track["spotify_id"],
+                "album_spotify_id": parsed_album["spotify_id"],
             }
 
         for parsed_artist in parsed_track.get("artists"):
-            self.artists_map[parsed_artist["id"]] = parsed_artist
+            self.artists_map[parsed_artist["spotify_id"]] = parsed_artist
             self.track_artists_relations.append(
                 {
-                    "track_id": parsed_track["id"],
-                    "artist_id": parsed_artist["id"],
+                    "track_spotify_id": parsed_track["spotify_id"],
+                    "artist_spotify_id": parsed_artist["spotify_id"],
                 }
             )
 
         if parsed_album:
             for parsed_artist in parsed_album.get("artists"):
-                self.artists_map[parsed_artist["id"]] = parsed_artist
+                self.artists_map[parsed_artist["spotify_id"]] = parsed_artist
                 self.album_artists_relations.append(
                     {
-                        "album_id": parsed_album["id"],
-                        "artist_id": parsed_artist["id"],
+                        "album_spotify_id": parsed_album["spotify_id"],
+                        "artist_spotify_id": parsed_artist["spotify_id"],
                     }
                 )
 
@@ -413,17 +419,17 @@ class SpotifyDBService:
     def bulk_create_artists(self, artists_data: list[dict]) -> None:
         existing_artist_spotify_ids = set(
             Artist.objects.filter(
-                spotify_id__in=[a["id"] for a in artists_data]
+                spotify_id__in=[a["spotify_id"] for a in artists_data]
             ).values_list("spotify_id", flat=True)
         )
 
         artists_to_create = [
             Artist(
-                spotify_id=data["id"],
+                spotify_id=data["spotify_id"],
                 name=data["name"],
             )
             for data in artists_data
-            if data["id"] not in existing_artist_spotify_ids
+            if data["spotify_id"] not in existing_artist_spotify_ids
         ]
 
         if artists_to_create:
@@ -431,12 +437,12 @@ class SpotifyDBService:
             log.info(f"Created {len(artists_to_create)} new artists.")
 
     def bulk_update_artists(self, artists_data: list[dict]) -> None:
-        unique_artist_ids = {data["id"] for data in artists_data}
+        unique_artist_ids = {data["spotify_id"] for data in artists_data}
         artists_map = get_objects_map(Artist, unique_artist_ids)
 
         artists_to_update = []
         for data in artists_data:
-            artist = artists_map.get(data["id"])
+            artist = artists_map.get(data["spotify_id"])
             if artist:
                 artist.cover_url = data["cover_url"]
                 artists_to_update.append(artist)
@@ -450,35 +456,57 @@ class SpotifyDBService:
     def bulk_create_albums(self, albums_data: list[dict]) -> None:
         existing_album_spotify_ids = set(
             Album.objects.filter(
-                spotify_id__in=[a["id"] for a in albums_data]
+                spotify_id__in=[a["spotify_id"] for a in albums_data]
             ).values_list("spotify_id", flat=True)
         )
 
         albums_to_create = [
             Album(
-                spotify_id=data["id"],
+                spotify_id=data["spotify_id"],
                 name=data["name"],
                 cover_url=data["cover_url"],
             )
             for data in albums_data
-            if data["id"] not in existing_album_spotify_ids
+            if data["spotify_id"] not in existing_album_spotify_ids
         ]
 
         if albums_to_create:
             Album.objects.bulk_create(albums_to_create, ignore_conflicts=True)
             log.info(f"Created {len(albums_to_create)} new albums.")
 
-    def bulk_update_tracks(self, tracks_data: list[dict]) -> None:
-        unique_track_ids = {r["track_id"] for r in tracks_data}
-        unique_album_ids = {r["album_id"] for r in tracks_data}
+    def bulk_create_tracks(self, tracks_data: list[dict]) -> None:
+        existing_tracks_spotify_ids = set(
+            Track.objects.filter(
+                spotify_id__in={data["spotify_id"] for data in tracks_data}
+            ).values_list("spotify_id", flat=True)
+        )
 
-        tracks_map = get_objects_map(Track, unique_track_ids)
-        albums_map = get_objects_map(Album, unique_album_ids)
+        tracks_to_create = [
+            Track(
+                spotify_id=data["spotify_id"],
+                name=data["name"],
+            )
+            for data in tracks_data
+            if data["spotify_id"] not in existing_tracks_spotify_ids
+        ]
+
+        if tracks_to_create:
+            Track.objects.bulk_create(
+                tracks_to_create, batch_size=500, ignore_conflicts=True
+            )
+            log.info(f"Created {len(tracks_to_create)} new tracks.")
+
+    def bulk_update_tracks(self, tracks_data: list[dict]) -> None:
+        unique_track_spotify_ids = {data["track_spotify_id"] for data in tracks_data}
+        unique_album_spotify_ids = {data["album_spotify_id"] for data in tracks_data}
+
+        tracks_map = get_objects_map(Track, unique_track_spotify_ids)
+        albums_map = get_objects_map(Album, unique_album_spotify_ids)
 
         tracks_to_update = []
-        for r in tracks_data:
-            track = tracks_map.get(r["track_id"])
-            album = albums_map.get(r["album_id"])
+        for data in tracks_data:
+            track = tracks_map.get(data["track_spotify_id"])
+            album = albums_map.get(data["album_spotify_id"])
             if track and album:
                 track.album = album
                 tracks_to_update.append(track)
@@ -488,16 +516,18 @@ class SpotifyDBService:
             log.info(f"Updated {len(tracks_to_update)} tracks.")
 
     def bulk_create_albums_artists(self, relations_data: list[dict]) -> None:
-        unique_album_ids = {data["album_id"] for data in relations_data}
-        unique_artist_ids = {data["artist_id"] for data in relations_data}
+        unique_album_spotify_ids = {data["album_spotify_id"] for data in relations_data}
+        unique_artist_spotify_ids = {
+            data["artist_spotify_id"] for data in relations_data
+        }
 
-        albums_map = get_objects_map(Album, unique_album_ids)
-        artists_map = get_objects_map(Artist, unique_artist_ids)
+        albums_map = get_objects_map(Album, unique_album_spotify_ids)
+        artists_map = get_objects_map(Artist, unique_artist_spotify_ids)
 
         relations_to_create = []
         for data in relations_data:
-            album = albums_map[data["album_id"]]
-            artist = artists_map[data["artist_id"]]
+            album = albums_map[data["album_spotify_id"]]
+            artist = artists_map[data["artist_spotify_id"]]
 
             if album and artist:
                 relations_to_create.append(
@@ -509,16 +539,18 @@ class SpotifyDBService:
             log.info(f"Created {len(relations_to_create)} albums artists.")
 
     def bulk_create_track_artists(self, relations_data: list[dict]) -> None:
-        unique_track_ids = {data["track_id"] for data in relations_data}
-        unique_artist_ids = {data["artist_id"] for data in relations_data}
+        unique_track_spotify_ids = {data["track_spotify_id"] for data in relations_data}
+        unique_artist_spotify_ids = {
+            data["artist_spotify_id"] for data in relations_data
+        }
 
-        tracks_map = get_objects_map(Track, unique_track_ids)
-        artists_map = get_objects_map(Artist, unique_artist_ids)
+        tracks_map = get_objects_map(Track, unique_track_spotify_ids)
+        artists_map = get_objects_map(Artist, unique_artist_spotify_ids)
 
         relations_to_create = []
         for data in relations_data:
-            track = tracks_map[data["track_id"]]
-            artist = artists_map[data["artist_id"]]
+            track = tracks_map[data["track_spotify_id"]]
+            artist = artists_map[data["artist_spotify_id"]]
 
             if track and artist:
                 relations_to_create.append(
@@ -528,6 +560,27 @@ class SpotifyDBService:
         if relations_to_create:
             TrackArtist.objects.bulk_create(relations_to_create, ignore_conflicts=True)
             log.info(f"Created {len(relations_to_create)} tracks artists.")
+
+    def bulk_create_listening_history(self, user, history_data: list[dict]):
+        tracks_spotify_ids = {data["track_spotify_id"] for data in history_data}
+        tracks_map = get_objects_map(Track, tracks_spotify_ids)
+
+        listening_history_to_create = []
+        for data in history_data:
+            track = tracks_map.get(data["track_spotify_id"])
+            data.pop("track_spotify_id")
+            if track:
+                listening_history_to_create.append(
+                    ListeningHistory(user=user, track=track, **data)
+                )
+
+        if listening_history_to_create:
+            ListeningHistory.objects.bulk_create(
+                listening_history_to_create, batch_size=500, ignore_conflicts=True
+            )
+            log.info(
+                f"Created {len(listening_history_to_create)} listening history records."
+            )
 
 
 class SpotifyAPIProcessor:
@@ -586,7 +639,7 @@ class SpotifyAPIProcessor:
         wait=wait_fixed(2),
         stop=stop_after_attempt(3),
         before_sleep=lambda retry_state: log.info(
-            f"Retrying {retry_state.fn.__name__} in {retry_state.seconds.since_start}s. "
+            f"Retrying {retry_state.fn.__name__} in {retry_state.seconds_since_start}s. "
             f"Attempt #{retry_state.attempt_number}..."
         ),
     )
@@ -611,7 +664,7 @@ class SpotifyAPIProcessor:
         wait=wait_fixed(2),
         stop=stop_after_attempt(3),
         before_sleep=lambda retry_state: log.info(
-            f"Retrying {retry_state.fn.__name__} in {retry_state.seconds.since_start}s. "
+            f"Retrying {retry_state.fn.__name__} in {retry_state.seconds_since_start}s. "
             f"Attempt #{retry_state.attempt_number}..."
         ),
     )
@@ -632,7 +685,94 @@ class SpotifyAPIProcessor:
             )
 
 
+class StreamingDataValidator:
+
+    def validate_file_content(self, file):
+        try:
+            streaming_records = json.load(file)
+        except json.JSONDecodeError as e:
+            log.error(f"Invalid JSON in file: {e}")
+            raise InvalidFileContentError("Invalid JSON format.")
+
+        if not isinstance(streaming_records, list):
+            log.error(f"Expected a list, got {type(streaming_records)}")
+            raise InvalidFileContentError("Expected a list of records.")
+
+        return streaming_records
+
+    def validate_record(self, record: dict):
+        if not isinstance(record, dict):
+            return None
+
+        track_name = safe_strip(record.get("master_metadata_track_name"))
+        spotify_track_uri = safe_strip(record.get("spotify_track_uri"))
+        ts = safe_strip(record.get("ts"))
+        ms_played = record.get("ms_played")
+
+        missing_fields = self._get_missing_fields(
+            track_name, spotify_track_uri, ts, ms_played
+        )
+
+        if missing_fields:
+            return None
+
+        try:
+            ms_played = self._validate_ms_played(ms_played)
+            played_at = self._validate_played_at(ts)
+            spotify_track_uri = self._validate_spotify_track_uri(spotify_track_uri)
+        except InvalidRecordError:
+            return None
+
+        return {
+            "track_name": track_name,
+            "spotify_track_uri": spotify_track_uri,
+            "played_at": played_at,
+            "ms_played": ms_played,
+        }
+
+    def _get_missing_fields(
+        self, track_name: str, spotify_track_uri: str, ts: str, ms_played: int
+    ):
+        missing_fields = []
+        if not track_name:
+            missing_fields.append("track_name")
+        if not spotify_track_uri:
+            missing_fields.append("spotify_track_uri")
+        if not ts:
+            missing_fields.append("ts")
+        if ms_played is None:
+            missing_fields.append("ms_played")
+        return missing_fields
+
+    def _validate_ms_played(self, ms_played):
+        try:
+            ms_played = int(ms_played)
+            if ms_played < 0:
+                raise InvalidRecordError("ms_played must be non-negative.")
+            return ms_played
+        except (ValueError, TypeError):
+            raise InvalidRecordError("Invalid ms_played value.")
+
+    def _validate_played_at(self, played_at_str: str):
+        try:
+            parsed_datetime = parse_datetime(played_at_str)
+            if parsed_datetime is None:
+                raise InvalidRecordError("played_at is not well formatted.")
+            return parsed_datetime
+        except ValueError:
+            raise InvalidRecordError("Invalid played_at value.")
+
+    def _validate_spotify_track_uri(self, spotify_track_uri: str):
+        if not spotify_track_uri.startswith("spotify:track:"):
+            raise InvalidRecordError("Invalid spotify_track_uri.")
+        return spotify_track_uri
+
+
 class FileProcessingService:
+
+    def __init__(self, validator, db_service):
+        self.validator = validator
+        self.db_service = db_service
 
     def process_file_upload_jobs(self, job_ids: list[uuid.UUID]) -> None:
         jobs = FileUploadJob.objects.filter(id__in=job_ids)
@@ -641,17 +781,7 @@ class FileProcessingService:
             job.status = FileUploadJob.Status.PROCESSING
             job.save(update_fields=["status"])
 
-            try:
-                success = self.process_single_job(job)
-                job_succeeded = success
-
-                if success:
-                    log.info("Job %s completed successfully" % job.id)
-                else:
-                    log.warning("Job %s failed during processing" % job.id)
-            except Exception as e:
-                log.error("Job %s crashed with exception: %s" % (job.id, e))
-                job_succeeded = False
+            job_succeeded = self.process_single_job(job)
 
             job.status = (
                 FileUploadJob.Status.COMPLETED
@@ -661,173 +791,42 @@ class FileProcessingService:
             job.save(update_fields=["status"])
 
     def process_single_job(self, job: FileUploadJob) -> bool:
-        streaming_records = self.validate_job_file_content(job)
-        if streaming_records is None:
+        try:
+            streaming_records = self.validator.validate_file_content(job.file)
+        except InvalidFileContentError as e:
+            log.error(f"Job {job.id} failed: {e}")
             return False
 
-        existing_track_spotify_ids = set(
-            Track.objects.values_list("spotify_id", flat=True)
-        )
-
-        tracks_to_create = []
+        tracks_data = {}
         listening_history_data = []
 
         for record in streaming_records:
-            record = self.validate_record(record)
-            if record is None:
+            validated_record = self.validator.validate_record(record)
+            if validated_record is None:
                 continue
 
-            track_name = record["track_name"]
-            spotify_track_uri = record["spotify_track_uri"]
-            played_at = record["played_at"]
-            ms_played = record["ms_played"]
-
-            spotify_id = spotify_track_uri.split(":")[-1]
-            if spotify_id not in existing_track_spotify_ids:
-                tracks_to_create.append(
-                    Track(
-                        spotify_id=spotify_id,
-                        name=track_name,
-                    )
-                )
-                existing_track_spotify_ids.add(spotify_id)
-
+            spotify_id = validated_record["spotify_track_uri"].split(":")[-1]
+            tracks_data[spotify_id] = {
+                "spotify_id": spotify_id,
+                "name": validated_record["track_name"],
+            }
             listening_history_data.append(
                 {
-                    "spotify_id": spotify_id,
-                    "played_at": played_at,
-                    "ms_played": ms_played,
+                    "track_spotify_id": spotify_id,
+                    "played_at": validated_record["played_at"],
+                    "ms_played": validated_record["ms_played"],
                 }
             )
 
-        Track.objects.bulk_create(
-            tracks_to_create, batch_size=500, ignore_conflicts=True
-        )
-
-        all_spotify_ids = [data["spotify_id"] for data in listening_history_data]
-        tracks_map = {
-            track.spotify_id: track
-            for track in Track.objects.filter(spotify_id__in=all_spotify_ids)
-        }
-
-        listening_history_to_create = []
-        for data in listening_history_data:
-            track = tracks_map.get(data["spotify_id"])
-            if track:
-                listening_history_to_create.append(
-                    ListeningHistory(
-                        user=job.user,
-                        track=track,
-                        played_at=data["played_at"],
-                        ms_played=data["ms_played"],
-                    )
-                )
-
-        ListeningHistory.objects.bulk_create(
-            listening_history_to_create, batch_size=500, ignore_conflicts=True
-        )
-
-        log.info(
-            "Created %d listening history records." % len(listening_history_to_create)
-        )
-
-        return True
-
-    def validate_job_file_content(self, job: FileUploadJob) -> list | None:
         try:
-            streaming_records = json.load(job.file)
-        except json.JSONDecodeError as e:
-            log.error("Invalid JSON in job %s: %s" % (job.id, e))
-            return None
-
-        if not isinstance(streaming_records, list):
-            log.error(
-                "Job %s: Expected list, got %s" % (job.id, type(streaming_records))
+            self.db_service.bulk_create_tracks(list(tracks_data.values()))
+            self.db_service.bulk_create_listening_history(
+                job.user, listening_history_data
             )
-            return None
-
-        return streaming_records
-
-    def validate_record(self, record: dict) -> dict | None:
-        if not isinstance(record, dict):
-            # log.warning("Invalid record type: %s" % type(record))
-            return None
-
-        track_name = self.safe_strip(record.get("master_metadata_track_name"))
-        spotify_track_uri = self.safe_strip(record.get("spotify_track_uri"))
-        ts = self.safe_strip(record.get("ts"))
-        ms_played = record.get("ms_played")
-
-        missing_fields = self.get_missing_fields(
-            track_name, spotify_track_uri, ts, ms_played
-        )
-
-        if missing_fields:
-            # log.warning("Missing required fields: %s" % ", ".join(missing_fields))
-            return None
-
-        ms_played = self.validate_ms_played(ms_played)
-        if ms_played is None:
-            return None
-
-        played_at = self.validate_played_at(ts)
-        if played_at is None:
-            return None
-
-        record_ = {
-            "track_name": track_name,
-            "spotify_track_uri": spotify_track_uri,
-            "played_at": played_at,
-            "ms_played": ms_played,
-        }
-
-        return record_
-
-    def get_missing_fields(
-        self, track_name: str, spotify_track_uri: str, ts: str, ms_played: int
-    ) -> list:
-        missing_fields = []
-        if not ts:
-            missing_fields.append("ts")
-        if not ms_played:
-            missing_fields.append("ms_played")
-        if not track_name:
-            missing_fields.append("track_name")
-        if not spotify_track_uri:
-            missing_fields.append("spotify_track_uri")
-
-        return missing_fields
-
-    def validate_ms_played(self, ms_played: int) -> int | None:
-        try:
-            ms_played = int(ms_played)
-            if ms_played < 0:
-                # log.warning("Negative ms_played: %d" % ms_played)
-                return None
-        except (ValueError, TypeError) as e:
-            # log.warning("Invalid ms_played '%s': %s" % (ms_played, e))
-            return None
-
-        return ms_played
-
-    def validate_played_at(self, played_at: str) -> datetime.datetime | None:
-        try:
-            played_at = parse_datetime(played_at)
-            if played_at is None:
-                # log.warning("Invalid datetime format: %s" % played_at)
-                return None
-        except ValueError as e:
-            # log.warning("Datetime parsing error for '%s': '%s'" % (played_at, e))
-            return None
-
-        return played_at
-
-    def split_into_batches(self, items: list, batch_size: int):
-        for i in range(0, len(items), batch_size):
-            yield items[i : i + batch_size]
-
-    def safe_strip(self, value: str) -> str | None:
-        return value.strip() if isinstance(value, str) else None
+            return True
+        except Exception as e:
+            log.error(f"Failed to save data for job {job.id}: {e}")
+            return False
 
 
 class StreamingAnalyticsService:
