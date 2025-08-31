@@ -16,6 +16,7 @@ from rest_framework import (
     parsers,
     views,
 )
+from rest_framework.exceptions import APIException
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from spotify_stats.analytics.api.v1.filters import (
@@ -129,12 +130,12 @@ class UserListeningActivityView(BaseUserListeningView):
         streaming_history_qs = self.get_filtered_listening_history()
 
         activity_type = request.query_params.get("type")
-        method_name = self.get_method_name_by_activity_type(activity_type)
+        method_name = self._get_method_name_by_activity_type(activity_type)
         if method_name is None:
             return response.Response(
                 {
                     "detail": "Invalid activity type. Allowed: %s"
-                    % ", ".join(self.get_allowed_activity_types_mapping().keys())
+                    % ", ".join(self._get_allowed_activity_types_mapping().keys())
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -143,11 +144,11 @@ class UserListeningActivityView(BaseUserListeningView):
         filtered_activity = self.filter_queryset(activity)
         return response.Response(filtered_activity)
 
-    def get_method_name_by_activity_type(self, activity_type: str) -> str | None:
-        mapping = self.get_allowed_activity_types_mapping()
+    def _get_method_name_by_activity_type(self, activity_type: str) -> str | None:
+        mapping = self._get_allowed_activity_types_mapping()
         return mapping.get(activity_type)
 
-    def get_allowed_activity_types_mapping(self) -> dict[str, str]:
+    def _get_allowed_activity_types_mapping(self) -> dict[str, str]:
         return {
             "yearly": "yearly_activity",
             "monthly": "monthly_activity",
@@ -180,17 +181,15 @@ class UserFileUploadJobListCreateView(mixins.ListModelMixin, generics.GenericAPI
         serializer.is_valid(raise_exception=True)
 
         files = serializer.validated_data["files"]
-        objs_to_create = []
-        for file in files:
-            user = self.request.user
-
-            objs_to_create.append(
-                FileUploadJob(user=user, file=file, status=FileUploadJob.Status.PENDING)
+        jobs = [
+            FileUploadJob(
+                user=request.user, file=file, status=FileUploadJob.Status.PENDING
             )
+            for file in files
+        ]
 
-        jobs = FileUploadJob.objects.bulk_create(objs_to_create)
-
-        job_ids = [job.id for job in jobs]
+        created_jobs = FileUploadJob.objects.bulk_create(jobs)
+        job_ids = [job.id for job in created_jobs]
         process_file_upload_jobs.delay(job_ids)
 
         return response.Response(
@@ -211,11 +210,14 @@ class SpotifyLoginView(views.APIView):
         return redirect(url)
 
 
+class SpotifyServiceError(APIException):
+    pass
+
+
 class SpotifyCallbackView(views.APIView):
 
     def get(self, request, *args, **kwargs):
         code = request.query_params.get("code")
-
         if not code:
             log.error("Spotify callback: 'code' is missing.")
             return response.Response(
@@ -223,44 +225,54 @@ class SpotifyCallbackView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        response_data = SpotifyAuthService.get_user_tokens(code)
-        if not response_data:
+        try:
+            tokens = self._get_spotify_tokens(code)
+            user_data = self._get_user_data(tokens.get("access_token"))
+            user = self._get_or_create_user(user_data)
+            self._update_or_create_spotify_profile(user, tokens, user_data.get("id"))
+            jwt_tokens = self._generate_jwt_tokens(user)
+
+            return response.Response(jwt_tokens, status=status.HTTP_200_OK)
+
+        except SpotifyServiceError as e:
             return response.Response(
-                {"error": "Failed to get tokens from Spotify"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        access_token = response_data.get("access_token")
-        refresh_token = response_data.get("refresh_token")
-        expires_in = response_data.get("expires_in")
-        scope = response_data.get("scope")
+    def _get_spotify_tokens(self, code: str):
+        tokens = SpotifyAuthService.get_user_tokens(code)
+        if not tokens:
+            raise SpotifyServiceError("Failed to get tokens from Spotify.")
+        return tokens
 
-        if not all([access_token, refresh_token, expires_in, scope]):
-            return response.Response(
-                {"error": "Missing required token data from Spotify."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
+    def _get_user_data(self, access_token: str):
         user_data = SpotifyAuthService.get_user_info(access_token)
         if not user_data:
-            return response.Response(
-                {"error": "Failed to get user info from Spotify"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise SpotifyServiceError("Failed to get user info from Spotify.")
+        return user_data
 
-        spotify_id = user_data.get("id")
+    def _get_or_create_user(self, user_data: dict):
         email = user_data.get("email")
+        display_name = user_data.get("display_name")
+        if not all([display_name, email]):
+            raise SpotifyServiceError("Missing user data from Spotify.")
 
         user, _ = User.objects.get_or_create(
-            email=email,
-            defaults={
-                "username": f"spotify_{spotify_id}",
-            },
+            email=email, defaults={"username": display_name}
         )
+        return user
+
+    def _update_or_create_spotify_profile(self, user, tokens: dict, spotify_id: str):
+        access_token = tokens.get("access_token")
+        refresh_token = tokens.get("refresh_token")
+        expires_in = tokens.get("expires_in")
+        scope = tokens.get("scope")
+
+        if not all([access_token, refresh_token, expires_in, scope]):
+            raise SpotifyServiceError("Missing required token data from Spotify.")
 
         expires_at = timezone.now() + timedelta(seconds=expires_in)
-
-        spotify_profile, _ = SpotifyProfile.objects.update_or_create(
+        SpotifyProfile.objects.update_or_create(
             user=user,
             defaults={
                 "access_token": access_token,
@@ -271,11 +283,6 @@ class SpotifyCallbackView(views.APIView):
             },
         )
 
+    def _generate_jwt_tokens(self, user):
         refresh = RefreshToken.for_user(user)
-        return response.Response(
-            {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-            },
-            status=status.HTTP_200_OK,
-        )
+        return {"access": str(refresh.access_token), "refresh": str(refresh)}
